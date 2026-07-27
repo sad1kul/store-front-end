@@ -6,18 +6,13 @@ import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
-import usersData from "@/lib/mock-data/users.json";
-import ordersData from "@/lib/mock-data/orders.json";
-import bulkAppsData from "@/lib/mock-data/bulk-applications.json";
+import { allUsers, allOrders, allApps } from "@/lib/mock-data";
+import { Order } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import {
   ChevronLeft, User, Mail, Calendar, Package, ShoppingBag,
   Building2, Lock, BadgeCheck, Clock, ExternalLink,
 } from "lucide-react";
-
-const allUsers = usersData as any[];
-const allOrders = ordersData as any[];
-const allApps = bulkAppsData as any[];
 
 interface PageProps {
   params: { id: string };
@@ -36,7 +31,7 @@ export default function UserDetailPage({ params }: PageProps) {
   const userOrders = allOrders.filter((o) => o.customerId === profile.id);
   const application = allApps.find((a) => a.email === profile.email);
 
-  const totalSpent = userOrders.reduce((sum: number, o: any) => sum + o.total, 0);
+  const totalSpent = userOrders.reduce((sum: number, o: Order) => sum + o.total, 0);
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
@@ -76,7 +71,7 @@ export default function UserDetailPage({ params }: PageProps) {
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-slate-500 mt-1">
                   <span className="flex items-center gap-1.5"><Mail size={13} />{profile.email}</span>
-                  <span className="flex items-center gap-1.5"><Calendar size={13} />Joined {new Date(profile.joinedDate).toLocaleDateString("en-ZA", { year: "numeric", month: "long" })}</span>
+                  <span className="flex items-center gap-1.5"><Calendar size={13} />Joined {profile.joinedDate ? new Date(profile.joinedDate).toLocaleDateString("en-ZA", { year: "numeric", month: "long" }) : "N/A"}</span>
                 </div>
                 {profile.businessName && (
                   <p className="text-sm text-slate-600 mt-2 flex items-center gap-1.5">
@@ -122,7 +117,7 @@ export default function UserDetailPage({ params }: PageProps) {
                 <div className="p-6 text-center text-slate-400 text-sm">No orders yet</div>
               ) : (
                 <ul className="divide-y divide-slate-50">
-                  {userOrders.map((order: any) => (
+                  {userOrders.map((order: Order) => (
                     <li key={order.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50">
                       <ShoppingBag size={14} className="text-slate-400 shrink-0" />
                       <div className="flex-1 min-w-0">

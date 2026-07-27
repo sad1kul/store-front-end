@@ -577,9 +577,11 @@ function ApplicationDrawer({
 }
 
 
+import { allApps } from "@/lib/mock-data";
+
 export default function BulkApprovalsPage() {
   const { user } = useAuthStore();
-  const [applications, setApplications] = useState<Application[]>(bulkAppsRaw as any);
+  const [applications, setApplications] = useState<Application[]>(allApps as unknown as Application[]);
   const [activeTab, setActiveTab] = useState<AppStatus>("pending");
   const [drawer, setDrawer] = useState<Application | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Application | null>(null);

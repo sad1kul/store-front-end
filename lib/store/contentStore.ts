@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import productsData from "@/lib/mock-data/products.json";
+import { allProducts } from "@/lib/mock-data";
 
-const defaultFeaturedIds = (productsData as any[])
+const defaultFeaturedIds = allProducts
   .filter((p) => p.featured)
   .map((p) => p.id);
 

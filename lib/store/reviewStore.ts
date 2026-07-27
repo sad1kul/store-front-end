@@ -1,24 +1,16 @@
 import { create } from "zustand";
-import productsData from "@/lib/mock-data/products.json";
-
-interface Review {
-  id: string;
-  productId: string;
-  author: string;
-  rating: number;
-  comment: string;
-  date: string;
-}
+import { allProducts } from "@/lib/mock-data";
+import { ReviewItem } from "@/lib/types";
 
 interface ReviewStore {
-  reviews: Review[];
-  getReviews: (productId: string) => Review[];
-  addReview: (review: Omit<Review, "id" | "date">) => void;
+  reviews: ReviewItem[];
+  getReviews: (productId: string) => ReviewItem[];
+  addReview: (review: Omit<ReviewItem, "id" | "date">) => void;
 }
 
 // seed from mock data
-const seedReviews: Review[] = (productsData as any[]).flatMap((p) =>
-  (p.reviews ?? []).map((r: any) => ({ ...r, productId: p.id }))
+const seedReviews: ReviewItem[] = allProducts.flatMap((p) =>
+  (p.reviews ?? []).map((r) => ({ ...r, productId: p.id }))
 );
 
 export const useReviewStore = create<ReviewStore>((set, get) => ({
@@ -29,7 +21,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   },
 
   addReview(data) {
-    const review: Review = {
+    const review: ReviewItem = {
       ...data,
       id: `r-${Date.now()}`,
       date: new Date().toISOString().split("T")[0],

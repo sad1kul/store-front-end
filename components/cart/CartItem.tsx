@@ -1,7 +1,6 @@
 "use client";
 
 import { useCartStore } from "@/lib/store/cartStore";
-import { useAuthStore } from "@/lib/store/authStore";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";

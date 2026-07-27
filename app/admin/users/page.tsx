@@ -6,7 +6,8 @@ import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
-import usersRaw from "@/lib/mock-data/users.json";
+import { allUsers } from "@/lib/mock-data";
+import { UserAccount } from "@/lib/types";
 import { Search, Lock, Eye, UserX } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,7 +15,7 @@ type RoleFilter = "All" | "retail" | "bulk_buyer" | "admin";
 
 export default function AdminUsersPage() {
   const { user } = useAuthStore();
-  const [users, setUsers] = useState(usersRaw as any[]);
+  const [users, setUsers] = useState<UserAccount[]>(allUsers);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("All");
 
@@ -110,7 +111,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-500 hidden lg:table-cell">{u.joinedDate}</td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={u.status} />
+                    <StatusBadge status={u.status ?? "active"} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">

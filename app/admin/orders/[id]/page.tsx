@@ -7,16 +7,15 @@ import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
-import ordersData from "@/lib/mock-data/orders.json";
+import { allOrders } from "@/lib/mock-data";
+import { OrderItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
-import { ORDER_STATUSES } from "@/lib/constants";
+import { ORDER_STATUSES, OrderStatus } from "@/lib/constants";
 import {
   ChevronLeft, Package, User, MapPin, Calendar, Printer,
   CheckCircle2, Clock, Truck, XCircle, Lock, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-
-const allOrders = ordersData as any[];
 
 interface PageProps {
   params: { id: string };
@@ -102,7 +101,7 @@ export default function OrderDetailPage({ params }: PageProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {order.items.map((item: any) => (
+                    {order.items.map((item: OrderItem) => (
                       <tr key={item.productId}>
                         <td className="px-5 py-3">
                           <p className="font-medium text-slate-900">{item.productName}</p>
@@ -110,7 +109,7 @@ export default function OrderDetailPage({ params }: PageProps) {
                         </td>
                         <td className="px-4 py-3 text-right text-slate-700">{item.qty}</td>
                         <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(item.unitPrice)}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(item.lineTotal)}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(item.lineTotal ?? (item.unitPrice * item.qty))}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -181,7 +180,7 @@ export default function OrderDetailPage({ params }: PageProps) {
                   <select
                     value={status}
                     onChange={(e) => {
-                      setStatus(e.target.value);
+                      setStatus(e.target.value as OrderStatus);
                       toast.success(`Status updated to ${e.target.value}`);
                     }}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none cursor-pointer"

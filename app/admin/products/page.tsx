@@ -6,27 +6,15 @@ import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
-import productsRaw from "@/lib/mock-data/products.json";
+import { allProducts } from "@/lib/mock-data";
+import { Product } from "@/lib/types";
 import { Plus, Pencil, Trash2, Search, X, Lock, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  sku: string;
-  category: string;
-  description: string;
-  retailPrice: number;
-  bulkPricingTiers: { minQty: number; maxQty: number | null; price: number }[];
-  stock: number;
-  images: string[];
-}
-
 export default function AdminProductsPage() {
   const { user } = useAuthStore();
-  const [products, setProducts] = useState<Product[]>(productsRaw as any);
+  const [products, setProducts] = useState<Product[]>(allProducts);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);

@@ -1,6 +1,12 @@
+/**
+ * NOTE: This auth is mock/demo only. Replace with a real server-side API auth layer (e.g. NextAuth.js or JWT) before production.
+ */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import bcrypt from "bcryptjs";
 import users from "@/lib/mock-data/users.json";
+
+import { UserAccount } from "@/lib/types";
 
 export type UserRole = "guest" | "retail" | "bulk_buyer" | "admin";
 export type BulkStatus = "approved" | "pending" | "rejected" | null;
@@ -21,7 +27,7 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => { success: boolean; error?: string };
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   switchRole: (role: UserRole) => void; // DevTools only
 }
@@ -63,11 +69,13 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
 
-      login: (email, password) => {
-        const found = (users as any[]).find(
-          (u) => u.email === email && u.password === password
-        );
+      login: async (email, password) => {
+        const found = (users as unknown as UserAccount[]).find((u) => u.email === email);
         if (!found) {
+          return { success: false, error: "Invalid email or password." };
+        }
+        const isValid = await bcrypt.compare(password, found.password ?? "");
+        if (!isValid) {
           return { success: false, error: "Invalid email or password." };
         }
         const user: AuthUser = {
@@ -96,3 +104,4 @@ export const useAuthStore = create<AuthState>()(
     { name: "smoke-time-auth" }
   )
 );
+

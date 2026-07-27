@@ -6,19 +6,14 @@ import { useAuthStore } from "@/lib/store/authStore";
 import StatsCard from "@/components/admin/StatsCard";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
-import ordersData from "@/lib/mock-data/orders.json";
-import productsData from "@/lib/mock-data/products.json";
-import bulkAppsData from "@/lib/mock-data/bulk-applications.json";
+import { allOrders, allProducts, allApps } from "@/lib/mock-data";
+import { Order, Product, WholesaleApplication } from "@/lib/types";
 import { BarChart2, ShoppingBag, Users, Package, Clock, Lock, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart,
 } from "recharts";
-
-const orders = ordersData as any[];
-const products = productsData as any[];
-const apps = bulkAppsData as any[];
 
 // Mock 7-day revenue data
 const revenueData = [
@@ -31,7 +26,7 @@ const revenueData = [
   { day: "Sun", revenue: 19800 },
 ];
 
-const topProducts = products.slice(0, 5).map((p: any, i: number) => ({
+const topProducts = allProducts.slice(0, 5).map((p: Product, i: number) => ({
   ...p,
   sales: [87, 65, 54, 43, 38][i],
   revenue: [87 * p.retailPrice, 65 * p.retailPrice, 54 * p.retailPrice, 43 * p.retailPrice, 38 * p.retailPrice][i],
@@ -44,10 +39,10 @@ export default function AdminPage() {
     return <AdminGuard />;
   }
 
-  const totalRevenue = orders.reduce((s: number, o: any) => s + o.total, 0);
-  const pendingApprovals = apps.filter((a: any) => a.status === "pending").length;
-  const pendingOrders = orders.filter((o: any) => o.status === "pending" || o.status === "processing");
-  const lowStockProducts = products.filter((p: any) => p.stock > 0 && p.stock <= 15);
+  const totalRevenue = allOrders.reduce((s: number, o: Order) => s + o.total, 0);
+  const pendingApprovals = allApps.filter((a: WholesaleApplication) => a.status === "pending").length;
+  const pendingOrders = allOrders.filter((o: Order) => o.status === "pending" || o.status === "processing");
+  const lowStockProducts = allProducts.filter((p: Product) => p.stock > 0 && p.stock <= 15);
   const todayOrders = 4; // mock
 
   return (
@@ -69,7 +64,7 @@ export default function AdminPage() {
             colorClass="text-emerald-600" iconBg="bg-emerald-100" />
           <StatsCard title="Pending Approvals" value={pendingApprovals} icon={Clock}
             subtitle="Bulk buyer applications" colorClass="text-amber-600" iconBg="bg-amber-100" />
-          <StatsCard title="Total Products" value={products.length} icon={Package}
+          <StatsCard title="Total Products" value={allProducts.length} icon={Package}
             subtitle="Active listings" colorClass="text-violet-600" iconBg="bg-violet-100" />
         </div>
 
@@ -107,7 +102,7 @@ export default function AdminPage() {
               </Link>
             </div>
             <div className="space-y-3">
-              {orders.slice(0, 5).map((order: any) => (
+              {allOrders.slice(0, 5).map((order: Order) => (
                 <div key={order.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                   <div>
                     <p className="text-xs font-semibold text-slate-900 font-mono">{order.id}</p>
@@ -141,7 +136,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {topProducts.map((p: any, i: number) => (
+              {topProducts.map((p, i) => (
                 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-3">
@@ -179,7 +174,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <ul className="divide-y divide-slate-50">
-                {lowStockProducts.map((p: any) => (
+                {lowStockProducts.map((p: Product) => (
                   <li key={p.id} className="flex items-center gap-3 px-6 py-3">
                     <img src={p.images[0]} alt={p.name} className="w-9 h-9 rounded-lg object-cover shrink-0" />
                     <div className="flex-1 min-w-0">

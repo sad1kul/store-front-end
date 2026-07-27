@@ -7,7 +7,8 @@ import {
   ShoppingCart, Star, Package, CheckCircle2, AlertCircle,
   ChevronLeft, ChevronRight, Shield, Truck
 } from "lucide-react";
-import productsData from "@/lib/mock-data/products.json";
+import { allProducts } from "@/lib/mock-data";
+import { ReviewItem } from "@/lib/types";
 import { useCartStore, getApplicableBulkPrice } from "@/lib/store/cartStore";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useReviewStore } from "@/lib/store/reviewStore";
@@ -23,7 +24,7 @@ interface PageProps {
 }
 
 export default function ProductDetailPage({ params }: PageProps) {
-  const product = (productsData as any[]).find((p) => p.slug === params.slug);
+  const product = allProducts.find((p) => p.slug === params.slug);
   if (!product) notFound();
 
   const { user } = useAuthStore();
@@ -48,7 +49,7 @@ export default function ProductDetailPage({ params }: PageProps) {
   const savings = hasBulkDiscount ? (product.retailPrice - displayPrice) * qty : 0;
 
   const avgRating = liveReviews.length
-    ? liveReviews.reduce((s: number, r: any) => s + r.rating, 0) / liveReviews.length
+    ? liveReviews.reduce((s: number, r: ReviewItem) => s + r.rating, 0) / liveReviews.length
     : null;
 
   const handleAddToCart = () => {
@@ -276,7 +277,7 @@ export default function ProductDetailPage({ params }: PageProps) {
 
         {liveReviews.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
-            {liveReviews.map((review: any) => (
+            {liveReviews.map((review: ReviewItem) => (
               <div key={review.id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">

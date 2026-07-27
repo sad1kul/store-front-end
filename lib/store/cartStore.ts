@@ -77,7 +77,13 @@ export const useCartStore = create<CartState>()(
           return;
         }
         set({
-          items: get().items.map((i) => (i.id === id ? { ...i, qty } : i)),
+          items: get().items.map((item) => {
+            if (item.id !== id) return item;
+            const bulkPrice = getApplicableBulkPrice(item.bulkPricingTiers ?? [], qty);
+            const isBulkPriced = bulkPrice !== null;
+            const unitPrice = isBulkPriced ? bulkPrice : item.retailPrice;
+            return { ...item, qty, unitPrice, isBulkPriced };
+          }),
         });
       },
 

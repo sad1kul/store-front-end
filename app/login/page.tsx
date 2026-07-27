@@ -28,8 +28,8 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setAuthError("");
-    await new Promise((r) => setTimeout(r, 800));
-    const result = login(data.email, data.password);
+    await new Promise((r) => setTimeout(r, 400));
+    const result = await login(data.email, data.password);
     setIsLoading(false);
     if (result.success) {
       router.push("/");
@@ -70,8 +70,8 @@ export default function LoginPage() {
                 <button
                   key={a.label}
                   type="button"
-                  onClick={() => {
-                    login(a.email, a.pass);
+                  onClick={async () => {
+                    await login(a.email, a.pass);
                     router.push("/");
                   }}
                   className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"

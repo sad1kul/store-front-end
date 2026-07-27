@@ -12,9 +12,9 @@ import {
   FileEdit,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import bulkApps from "@/lib/mock-data/bulk-applications.json";
+import { allApps } from "@/lib/mock-data";
 
-const pendingCount = (bulkApps as any[]).filter((a) => a.status === "pending").length;
+const pendingCount = allApps.filter((a) => a.status === "pending").length;
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },

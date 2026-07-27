@@ -12,7 +12,7 @@ export default function AgeGate() {
   useEffect(() => {
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (!stored) {
-      setState("gate");
+      queueMicrotask(() => setState("gate"));
     }
   }, []);
 

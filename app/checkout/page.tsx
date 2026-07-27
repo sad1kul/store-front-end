@@ -32,8 +32,7 @@ export default function CheckoutPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<CheckoutFormData>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(checkoutSchema) as any,
+    resolver: zodResolver(checkoutSchema),
     defaultValues: { paymentMethod: "card" },
   });
 
@@ -61,7 +60,7 @@ export default function CheckoutPage() {
       <input
         type={type}
         placeholder={placeholder}
-        {...register(name as any)}
+        {...register(name)}
         className={`w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
           errors[name] ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-white"
         }`}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ShoppingCart, Package, Star, Heart } from "lucide-react";
+import { ShoppingCart, Star, Heart } from "lucide-react";
 import { useCartStore, getApplicableBulkPrice } from "@/lib/store/cartStore";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useWishlistStore } from "@/lib/store/wishlistStore";

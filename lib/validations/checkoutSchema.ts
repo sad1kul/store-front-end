@@ -31,12 +31,10 @@ export const checkoutSchema = z.object({
     .regex(/^\d{3,4}$/, "CVV must be 3 or 4 digits")
     .optional()
     .or(z.literal("")),
-  paymentMethod: z.enum(["card", "eft"]).optional().default("card"),
+  paymentMethod: z.enum(["card", "eft"]),
 });
 
-export type CheckoutFormData = z.infer<typeof checkoutSchema> & {
-  paymentMethod: "card" | "eft";
-};
+export type CheckoutFormData = z.infer<typeof checkoutSchema>;
 
 export const SA_PROVINCES = [
   "Eastern Cape",

@@ -6,16 +6,16 @@ import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
-import ordersRaw from "@/lib/mock-data/orders.json";
+import { allOrders } from "@/lib/mock-data";
+import { Order, OrderItem } from "@/lib/types";
 import { ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-
 import { ORDER_STATUSES, OrderStatus } from "@/lib/constants";
 
 export default function AdminOrdersPage() {
   const { user } = useAuthStore();
-  const [orders, setOrders] = useState(ordersRaw as any[]);
+  const [orders, setOrders] = useState<Order[]>(allOrders);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (!user || user.role !== "admin") {
@@ -94,7 +94,7 @@ export default function AdminOrdersPage() {
                               <div className="px-6 py-4">
                                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Order Items</p>
                                 <div className="space-y-2">
-                                  {order.items.map((item: any) => (
+                                  {order.items.map((item: OrderItem) => (
                                     <div key={item.sku} className="flex items-center justify-between text-sm">
                                       <div className="flex items-center gap-2">
                                         <span className="text-slate-400 font-mono text-xs">{item.sku}</span>
@@ -102,7 +102,7 @@ export default function AdminOrdersPage() {
                                       </div>
                                       <div className="flex items-center gap-4 text-slate-600">
                                         <span>×{item.qty}</span>
-                                        <span className="font-semibold text-slate-900">{formatCurrency(item.lineTotal)}</span>
+                                        <span className="font-semibold text-slate-900">{formatCurrency(item.lineTotal ?? (item.unitPrice * item.qty))}</span>
                                       </div>
                                     </div>
                                   ))}

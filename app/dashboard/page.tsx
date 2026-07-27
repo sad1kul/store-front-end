@@ -3,16 +3,13 @@
 import { useAuthStore } from "@/lib/store/authStore";
 import { useCartStore } from "@/lib/store/cartStore";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
-import ordersData from "@/lib/mock-data/orders.json";
-import productsData from "@/lib/mock-data/products.json";
+import { allProducts, allOrders } from "@/lib/mock-data";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { Lock, TrendingUp, ShoppingBag, DollarSign, Tag, Plus, Trash2, FileText } from "lucide-react";
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-
-const allProducts = productsData as any[];
 
 interface QuickOrderRow { sku: string; qty: number; }
 
@@ -55,7 +52,7 @@ export default function DashboardPage() {
     );
   }
 
-  const myOrders = (ordersData as any[]).filter((o) => o.customerId === user.id);
+  const myOrders = allOrders.filter((o) => o.customerId === user.id);
   const [quickRows, setQuickRows] = useState<QuickOrderRow[]>([{ sku: "", qty: 1 }]);
 
   const addQuickRow = () => setQuickRows((r) => [...r, { sku: "", qty: 1 }]);

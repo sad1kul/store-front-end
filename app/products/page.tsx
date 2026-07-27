@@ -3,13 +3,12 @@
 import { useState, useMemo } from "react";
 import ProductCard from "@/components/products/ProductCard";
 import { ProductGridSkeleton } from "@/components/shared/LoadingSkeleton";
-import productsData from "@/lib/mock-data/products.json";
+import { allProducts } from "@/lib/mock-data";
 import { Search, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-const allProducts = productsData as any[];
 const categories = ["All", ...Array.from(new Set(allProducts.map((p) => p.category)))];
 const sortOptions = [
   { value: "default", label: "Default" },
