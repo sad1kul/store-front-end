@@ -1,15 +1,27 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import ProductCard from "@/components/products/ProductCard";
 import { ProductGridSkeleton } from "@/components/shared/LoadingSkeleton";
-import { allProducts } from "@/lib/mock-data";
+import { getProductsApi } from "@/lib/api/products";
+import { Product } from "@/lib/types";
 import { Search, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { toast } from "sonner";
 
-const categories = ["All", ...Array.from(new Set(allProducts.map((p) => p.category)))];
+const categories = [
+  "All",
+  "Pipe Tobacco",
+  "Hookah & Shisha",
+  "Cigars",
+  "Hookah & Accessories",
+  "Rolling Supplies",
+  "Vaping",
+  "Nicotine Products",
+  "Accessories",
+];
+
 const sortOptions = [
   { value: "default", label: "Default" },
   { value: "price_asc", label: "Price: Low to High" },
@@ -21,6 +33,8 @@ function ProductListingContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get("category") ?? "All";
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000]);
   const [inStockOnly, setInStockOnly] = useState(false);
@@ -28,35 +42,49 @@ function ProductListingContent() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const ITEMS_PER_PAGE = 9;
 
-  const filtered = useMemo(() => {
-    let result = allProducts;
-    if (selectedCategory !== "All") {
-      result = result.filter((p) => p.category === selectedCategory);
+  const loadProducts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await getProductsApi({
+        category: selectedCategory !== "All" ? selectedCategory : undefined,
+        search: search || undefined,
+        sortBy: sort !== "default" ? sort : undefined,
+        page: 1,
+        limit: page * ITEMS_PER_PAGE,
+      });
+
+      if (res.success && res.data) {
+        let items = res.data.products;
+
+        // Apply price range and in-stock client-side filters if needed
+        items = items.filter(
+          (p) => p.retailPrice >= priceRange[0] && p.retailPrice <= priceRange[1]
+        );
+        if (inStockOnly) items = items.filter((p) => p.stock > 0);
+
+        setProducts(items);
+        setTotalProducts(res.data.total);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load products", {
+        action: {
+          label: "Retry",
+          onClick: () => loadProducts(),
+        },
+      });
+    } finally {
+      setIsLoading(false);
     }
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter((p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q)
-      );
-    }
-    result = result.filter(
-      (p) => p.retailPrice >= priceRange[0] && p.retailPrice <= priceRange[1]
-    );
-    if (inStockOnly) result = result.filter((p) => p.stock > 0);
+  }, [selectedCategory, search, sort, page, priceRange, inStockOnly]);
 
-    if (sort === "price_asc") result = [...result].sort((a, b) => a.retailPrice - b.retailPrice);
-    else if (sort === "price_desc") result = [...result].sort((a, b) => b.retailPrice - a.retailPrice);
-    else if (sort === "newest") result = [...result].reverse();
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
-    return result;
-  }, [selectedCategory, priceRange, inStockOnly, sort, search]);
-
-  const paginated = filtered.slice(0, page * ITEMS_PER_PAGE);
-  const hasMore = paginated.length < filtered.length;
+  const hasMore = products.length < totalProducts;
 
   const FilterSidebar = () => (
     <div className="space-y-6">
@@ -122,7 +150,7 @@ function ProductListingContent() {
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">All Products</h1>
-        <p className="text-slate-500 mt-1">{filtered.length} product{filtered.length !== 1 ? "s" : ""} found</p>
+        <p className="text-slate-500 mt-1">{products.length} product{products.length !== 1 ? "s" : ""} loaded</p>
       </div>
 
       {/* Toolbar */}
@@ -195,7 +223,9 @@ function ProductListingContent() {
 
         {/* Product Grid */}
         <div className="flex-1">
-          {paginated.length === 0 ? (
+          {isLoading ? (
+            <ProductGridSkeleton />
+          ) : products.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-slate-400 text-lg mb-2">No products found</p>
               <p className="text-slate-400 text-sm">Try adjusting your filters</p>
@@ -204,7 +234,7 @@ function ProductListingContent() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 <AnimatePresence>
-                  {paginated.map((product, i) => (
+                  {products.map((product, i) => (
                     <motion.div
                       key={product.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -222,7 +252,7 @@ function ProductListingContent() {
                     onClick={() => setPage((p) => p + 1)}
                     className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors"
                   >
-                    Load More ({filtered.length - paginated.length} remaining)
+                    Load More ({totalProducts - products.length} remaining)
                   </button>
                 </div>
               )}

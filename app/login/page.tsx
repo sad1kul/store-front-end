@@ -38,11 +38,10 @@ export default function LoginPage() {
     }
   };
 
-  // Demo accounts helper
   const demoAccounts = [
-    { label: "Admin", email: "admin@smoketimestore.co.za", pass: "admin123" },
-    { label: "Bulk Buyer", email: "sipho@smokeworld.co.za", pass: "bulk123" },
-    { label: "Retail", email: "thabo@example.co.za", pass: "user123" },
+    { label: "Admin", email: "admin@smoketimestore.co.za", pass: "password123" },
+    { label: "Bulk Buyer", email: "sipho@smokeworld.co.za", pass: "password123" },
+    { label: "Retail", email: "thabo@example.co.za", pass: "password123" },
   ];
 
   return (

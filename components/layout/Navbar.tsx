@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useCartStore } from "@/lib/store/cartStore";
 import { ShoppingCart, Menu, X, LogOut, User, ChevronDown, Package, Heart } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchCommand from "@/components/layout/SearchCommand";
@@ -17,12 +17,16 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, initAuth } = useAuthStore();
   const getItemCount = useCartStore((s) => s.getItemCount);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const itemCount = getItemCount();
   const wishlistCount = useWishlistStore((s) => s.ids.length);
+
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">

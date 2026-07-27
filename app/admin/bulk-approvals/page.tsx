@@ -1,54 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
-import bulkAppsRaw from "@/lib/mock-data/bulk-applications.json";
+import { getWholesaleApplicationsApi, reviewWholesaleApplicationApi } from "@/lib/api/wholesale";
+import { WholesaleApplication, ApplicationStatus } from "@/lib/types";
 import {
-  CheckCircle, XCircle, Eye, Lock, X, Building2, Calendar,
-  Phone, Mail, FileText, MapPin, Camera, AlertCircle,
-  Send, Bell, Clock, UserCheck, BadgeX, ChevronDown, ChevronUp,
-  Smartphone, Info,
+  CheckCircle, XCircle, Eye, X, Building2, Calendar,
+  Mail, FileText, MapPin, Camera, AlertCircle,
+  Send, Bell, Clock, UserCheck, BadgeX,
+  Smartphone, Info, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-
-
-type AppStatus = "pending" | "approved" | "rejected";
-
-interface Application {
-  id: string;
-  businessName: string;
-  ownerName: string;
-  email: string;
-  phone: string;
-  cellphone?: string;
-  businessRegistration: string;
-  businessType: string;
-  monthlyOrderValue: string;
-  shopAddress?: string;
-  shopCity?: string;
-  shopProvince?: string;
-  yearsInBusiness?: string;
-  shopPhotos?: string[];
-  status: AppStatus;
-  appliedDate: string;
-  notes?: string;
-  approvedDate?: string;
-  rejectedDate?: string;
-  rejectionReason?: string;
-  adminNotes?: string;
-}
-
 
 function EmailPreviewModal({
   type, app, reason, onClose,
 }: {
   type: "approval" | "rejection";
-  app: Application;
+  app: WholesaleApplication;
   reason?: string;
   onClose: () => void;
 }) {
@@ -70,7 +42,6 @@ function EmailPreviewModal({
         onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
       >
-        {/* Header */}
         <div className={`px-5 py-4 flex items-center justify-between ${isApproval ? "bg-emerald-600" : "bg-rose-500"}`}>
           <div className="flex items-center gap-2 text-white">
             <Send size={16} />
@@ -81,7 +52,6 @@ function EmailPreviewModal({
           </button>
         </div>
 
-        {/* Email mockup */}
         <div className="p-5 max-h-[70vh] overflow-y-auto">
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 font-mono text-xs">
             <div className="space-y-1 text-slate-500 mb-4 pb-4 border-b border-slate-200">
@@ -152,11 +122,10 @@ function EmailPreviewModal({
   );
 }
 
-
 function RejectModal({
   app, onConfirm, onClose,
 }: {
-  app: Application;
+  app: WholesaleApplication;
   onConfirm: (reason: string) => void;
   onClose: () => void;
 }) {
@@ -212,7 +181,6 @@ function RejectModal({
                 and protects Smoke Time Store from disputes.
               </p>
 
-              {/* Preset reasons */}
               <div className="space-y-1.5 mb-3">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Quick select:</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -281,11 +249,10 @@ function RejectModal({
   );
 }
 
-
 function ApplicationDrawer({
   app, onApprove, onReject, onClose,
 }: {
-  app: Application;
+  app: WholesaleApplication;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   onClose: () => void;
@@ -293,12 +260,11 @@ function ApplicationDrawer({
   const [showEmailPreview, setShowEmailPreview] = useState<"approval" | "rejection" | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
 
-  // Mock shop photos for demo
   const mockPhotos = [
     "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop",
     "https://images.unsplash.com/photo-1604719312566-8912e9667d9f?w=400&h=300&fit=crop",
   ];
-  const photos = app.shopPhotos ?? mockPhotos;
+  const photos = app.shopPhotos && app.shopPhotos.length > 0 ? app.shopPhotos : mockPhotos;
 
   return (
     <>
@@ -316,7 +282,6 @@ function ApplicationDrawer({
         transition={{ type: "spring", damping: 28 }}
         className="fixed right-0 top-0 bottom-0 w-full sm:w-[420px] bg-white z-50 overflow-y-auto shadow-2xl flex flex-col"
       >
-        {/* Header */}
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
           <div>
             <h3 className="font-bold text-slate-900">Application Review</h3>
@@ -328,7 +293,6 @@ function ApplicationDrawer({
         </div>
 
         <div className="flex-1 p-5 space-y-5">
-          {/* Status banner */}
           <div className={`flex items-center justify-between p-3 rounded-xl border ${
             app.status === "pending" ? "bg-amber-50 border-amber-200" :
             app.status === "approved" ? "bg-emerald-50 border-emerald-200" :
@@ -346,7 +310,6 @@ function ApplicationDrawer({
             )}
           </div>
 
-          {/* Shop Photos */}
           <div>
             <div className="flex items-center gap-2 mb-2.5">
               <Camera size={15} className="text-indigo-500" />
@@ -375,7 +338,6 @@ function ApplicationDrawer({
             )}
           </div>
 
-          {/* Application details */}
           <div>
             <h4 className="text-sm font-bold text-slate-800 mb-3">Application Details</h4>
             <div className="space-y-2">
@@ -404,7 +366,7 @@ function ApplicationDrawer({
                 <Smartphone size={13} className="text-indigo-400 mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cellphone</p>
-                  <p className="text-sm text-slate-900 font-medium">{app.cellphone ?? app.phone}</p>
+                  <p className="text-sm text-slate-900 font-medium">{app.cellphone || "N/A"}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-2.5 bg-slate-50 rounded-xl">
@@ -418,7 +380,7 @@ function ApplicationDrawer({
                 <Building2 size={13} className="text-indigo-400 mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Business Type</p>
-                  <p className="text-sm text-slate-900 font-medium">{app.businessType}</p>
+                  <p className="text-sm text-slate-900 font-medium">{app.businessType || "N/A"}</p>
                 </div>
               </div>
               {(app.shopAddress || app.shopCity) && (
@@ -436,7 +398,7 @@ function ApplicationDrawer({
                 <FileText size={13} className="text-indigo-400 mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Monthly Volume</p>
-                  <p className="text-sm text-slate-900 font-medium">{app.monthlyOrderValue}</p>
+                  <p className="text-sm text-slate-900 font-medium">{app.monthlyOrderValue || app.estimatedMonthlySpend || "N/A"}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-2.5 bg-slate-50 rounded-xl">
@@ -446,15 +408,6 @@ function ApplicationDrawer({
                   <p className="text-sm text-slate-900 font-medium">{app.appliedDate}</p>
                 </div>
               </div>
-              {app.yearsInBusiness && (
-                <div className="flex items-start gap-3 p-2.5 bg-slate-50 rounded-xl">
-                  <Clock size={13} className="text-indigo-400 mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Years in Business</p>
-                    <p className="text-sm text-slate-900 font-medium">{app.yearsInBusiness}</p>
-                  </div>
-                </div>
-              )}
               {app.approvedDate && (
                 <div className="flex items-start gap-3 p-2.5 bg-slate-50 rounded-xl">
                   <UserCheck size={13} className="text-indigo-400 mt-0.5 shrink-0" />
@@ -476,8 +429,6 @@ function ApplicationDrawer({
             </div>
           </div>
 
-
-          {/* Notes */}
           {app.notes && (
             <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl">
               <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Applicant Notes</p>
@@ -485,7 +436,6 @@ function ApplicationDrawer({
             </div>
           )}
 
-          {/* Rejection reason (if rejected) */}
           {app.status === "rejected" && app.rejectionReason && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl">
               <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -496,7 +446,6 @@ function ApplicationDrawer({
           )}
         </div>
 
-        {/* Footer actions */}
         <div className="sticky bottom-0 bg-white border-t border-slate-100 p-4 space-y-3">
           {app.status === "pending" && (
             <>
@@ -538,7 +487,6 @@ function ApplicationDrawer({
         </div>
       </motion.div>
 
-      {/* Lightbox */}
       <AnimatePresence>
         {lightboxPhoto && (
           <motion.div
@@ -562,7 +510,6 @@ function ApplicationDrawer({
         )}
       </AnimatePresence>
 
-      {/* Email preview modal */}
       <AnimatePresence>
         {showEmailPreview && (
           <EmailPreviewModal
@@ -576,51 +523,75 @@ function ApplicationDrawer({
   );
 }
 
-
-import { allApps } from "@/lib/mock-data";
-
 export default function BulkApprovalsPage() {
   const { user } = useAuthStore();
-  const [applications, setApplications] = useState<Application[]>(allApps as unknown as Application[]);
-  const [activeTab, setActiveTab] = useState<AppStatus>("pending");
-  const [drawer, setDrawer] = useState<Application | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<Application | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [applications, setApplications] = useState<WholesaleApplication[]>([]);
+  const [activeTab, setActiveTab] = useState<ApplicationStatus>("pending");
+  const [drawer, setDrawer] = useState<WholesaleApplication | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<WholesaleApplication | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadApplications = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getWholesaleApplicationsApi();
+      if (res.success && res.data) {
+        setApplications(res.data.applications);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to fetch applications", {
+        action: {
+          label: "Retry",
+          onClick: () => loadApplications(),
+        },
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      loadApplications();
+    }
+  }, [user]);
 
   if (!user || user.role !== "admin") {
     return <AdminGuard />;
   }
 
-  const approve = (id: string) => {
-    setApplications((apps) =>
-      apps.map((a) => a.id === id ? {
-        ...a, status: "approved" as AppStatus,
-        approvedDate: new Date().toISOString().split("T")[0],
-      } : a)
-    );
-    toast.success("✅ Application approved! Login credentials email sent.", { duration: 4000 });
-    setDrawer(null);
+  const approve = async (id: string) => {
+    try {
+      const res = await reviewWholesaleApplicationApi(id, { status: "approved" });
+      if (res.success && res.data) {
+        setApplications((apps) =>
+          apps.map((a) => a.id === id ? res.data.application : a)
+        );
+        toast.success("✅ Application approved! User promoted to Bulk Buyer.", { duration: 4000 });
+        setDrawer(null);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to approve application");
+    }
   };
 
-  const reject = (id: string, reason: string) => {
-    setApplications((apps) =>
-      apps.map((a) => a.id === id ? {
-        ...a, status: "rejected" as AppStatus,
-        rejectedDate: new Date().toISOString().split("T")[0],
-        rejectionReason: reason || "No reason provided.",
-      } : a)
-    );
-    toast.error(
-      reason
-        ? "❌ Application rejected — reason sent to applicant."
-        : "❌ Application rejected — no reason provided.",
-      { duration: 4000 }
-    );
-    setRejectTarget(null);
-    setDrawer(null);
+  const reject = async (id: string, reason: string) => {
+    try {
+      const res = await reviewWholesaleApplicationApi(id, { status: "rejected", rejectionReason: reason });
+      if (res.success && res.data) {
+        setApplications((apps) =>
+          apps.map((a) => a.id === id ? res.data.application : a)
+        );
+        toast.error("❌ Application rejected — reason recorded.", { duration: 4000 });
+        setRejectTarget(null);
+        setDrawer(null);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reject application");
+    }
   };
 
-  const tabs: { key: AppStatus; label: string; color: string }[] = [
+  const tabs: { key: ApplicationStatus; label: string; color: string }[] = [
     { key: "pending", label: "Pending Review", color: "bg-amber-500" },
     { key: "approved", label: "Approved", color: "bg-emerald-500" },
     { key: "rejected", label: "Rejected", color: "bg-rose-500" },
@@ -638,8 +609,6 @@ export default function BulkApprovalsPage() {
     <div className="flex min-h-[calc(100vh-4rem)]">
       <AdminSidebar />
       <main className="flex-1 p-6 lg:p-8 bg-slate-50 overflow-auto">
-
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Wholesale Applications</h1>
           <p className="text-slate-500 text-sm mt-0.5">
@@ -652,7 +621,6 @@ export default function BulkApprovalsPage() {
           </p>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
           {tabs.map((tab) => (
             <button
@@ -676,9 +644,12 @@ export default function BulkApprovalsPage() {
           ))}
         </div>
 
-        {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="py-20 flex justify-center items-center">
+              <Loader2 size={32} className="animate-spin text-indigo-600" />
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
               <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 {activeTab === "pending" ? <Bell size={24} className="text-slate-300" /> :
@@ -709,9 +680,9 @@ export default function BulkApprovalsPage() {
                       <p className="text-xs text-slate-400">{app.email}</p>
                     </td>
                     <td className="px-4 py-4 text-sm text-slate-600 hidden md:table-cell">
-                      <span className="bg-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full">{app.businessType}</span>
+                      <span className="bg-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full">{app.businessType || "N/A"}</span>
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-600 hidden lg:table-cell">{app.monthlyOrderValue}</td>
+                    <td className="px-4 py-4 text-sm text-slate-600 hidden lg:table-cell">{app.monthlyOrderValue || app.estimatedMonthlySpend || "N/A"}</td>
                     <td className="px-4 py-4 text-sm text-slate-500 hidden sm:table-cell">{app.appliedDate}</td>
                     <td className="px-4 py-4"><StatusBadge status={app.status} /></td>
                     <td className="px-4 py-4">
@@ -751,7 +722,6 @@ export default function BulkApprovalsPage() {
         </div>
       </main>
 
-      {/* Drawers & Modals */}
       <AnimatePresence>
         {drawer && (
           <ApplicationDrawer

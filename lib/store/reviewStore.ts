@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { allProducts } from "@/lib/mock-data";
 import { ReviewItem } from "@/lib/types";
 
 interface ReviewStore {
@@ -8,10 +7,12 @@ interface ReviewStore {
   addReview: (review: Omit<ReviewItem, "id" | "date">) => void;
 }
 
-// seed from mock data
-const seedReviews: ReviewItem[] = allProducts.flatMap((p) =>
-  (p.reviews ?? []).map((r) => ({ ...r, productId: p.id }))
-);
+const seedReviews: ReviewItem[] = [
+  { id: "r1", productId: "1", author: "David M.", rating: 5, comment: "Exceptional quality Virginia blend. Smooth draw with rich caramel tones.", date: "2024-10-12" },
+  { id: "r2", productId: "1", author: "Johan K.", rating: 4, comment: "Great moisture level straight out of the tin. Will reorder.", date: "2024-09-28" },
+  { id: "r3", productId: "2", author: "Sipho D.", rating: 5, comment: "Massive clouds and top-tier mint flavor. Huge hit with our lounge customers.", date: "2024-10-01" },
+  { id: "r4", productId: "3", author: "Francois B.", rating: 5, comment: "Smooth creamy smoke. Perfect with a 12-year single malt.", date: "2024-08-15" },
+];
 
 export const useReviewStore = create<ReviewStore>((set, get) => ({
   reviews: seedReviews,

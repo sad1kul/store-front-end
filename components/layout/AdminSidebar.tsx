@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,26 +13,36 @@ import {
   FileEdit,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { allApps } from "@/lib/mock-data";
-
-const pendingCount = allApps.filter((a) => a.status === "pending").length;
-
-const navItems = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
-  { href: "/admin/users", label: "Users", icon: Users },
-  {
-    href: "/admin/bulk-approvals",
-    label: "Bulk Approvals",
-    icon: CheckSquare,
-    badge: pendingCount,
-  },
-  { href: "/admin/content", label: "Content", icon: FileEdit },
-];
+import { getWholesaleApplicationsApi } from "@/lib/api/wholesale";
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    getWholesaleApplicationsApi()
+      .then((res) => {
+        if (res.success && res.data) {
+          const pending = res.data.applications.filter((a) => a.status === "pending").length;
+          setPendingCount(pending);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const navItems = [
+    { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { href: "/admin/products", label: "Products", icon: Package },
+    { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+    { href: "/admin/users", label: "Users", icon: Users },
+    {
+      href: "/admin/bulk-approvals",
+      label: "Bulk Approvals",
+      icon: CheckSquare,
+      badge: pendingCount,
+    },
+    { href: "/admin/content", label: "Content", icon: FileEdit },
+  ];
 
   return (
     <aside className="w-64 shrink-0 bg-slate-900 min-h-screen flex flex-col">

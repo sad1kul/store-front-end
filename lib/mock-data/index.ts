@@ -1,3 +1,4 @@
+// DEPRECATED: kept temporarily for fallback during API migration.
 import productsData from "./products.json";
 import usersData from "./users.json";
 import ordersData from "./orders.json";

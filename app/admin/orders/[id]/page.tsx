@@ -1,19 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { notFound } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
-import { allOrders } from "@/lib/mock-data";
-import { OrderItem } from "@/lib/types";
+import { getOrderByIdApi, updateOrderStatusApi } from "@/lib/api/orders";
+import { Order, OrderItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { ORDER_STATUSES, OrderStatus } from "@/lib/constants";
 import {
-  ChevronLeft, Package, User, MapPin, Calendar, Printer,
-  CheckCircle2, Clock, Truck, XCircle, Lock, ChevronDown,
+  ChevronLeft, Package, Calendar, Printer,
+  MapPin, ChevronDown, Truck, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,19 +22,64 @@ interface PageProps {
 
 export default function OrderDetailPage({ params }: PageProps) {
   const { user } = useAuthStore();
-  const order = allOrders.find((o) => o.id === params.id);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [status, setStatus] = useState<OrderStatus>("pending");
+  const [adminNotes, setAdminNotes] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      getOrderByIdApi(params.id)
+        .then((res) => {
+          if (res.success && res.data?.order) {
+            setOrder(res.data.order);
+            setStatus(res.data.order.status);
+            setAdminNotes(res.data.order.adminNotes || "");
+          }
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [user, params.id]);
 
   if (!user || user.role !== "admin") {
     return <AdminGuard />;
   }
 
-  if (!order) notFound();
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)]">
+        <AdminSidebar />
+        <main className="flex-1 bg-slate-50 flex items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-indigo-600" />
+        </main>
+      </div>
+    );
+  }
 
-  const [status, setStatus] = useState(order.status);
-  const [adminNotes, setAdminNotes] = useState(order.adminNotes ?? "");
+  if (!order) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)]">
+        <AdminSidebar />
+        <main className="flex-1 bg-slate-50 p-8 text-center">
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Order Not Found</h2>
+          <Link href="/admin/orders" className="text-indigo-600 font-semibold">← Back to Orders</Link>
+        </main>
+      </div>
+    );
+  }
 
-  const saveNotes = () => {
-    toast.success("Admin notes saved");
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    try {
+      const res = await updateOrderStatusApi(order.id, newStatus);
+      if (res.success) {
+        setStatus(newStatus);
+        toast.success(`Status updated to ${newStatus}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update status");
+    }
   };
 
   const handlePrint = () => window.print();
@@ -101,10 +145,10 @@ export default function OrderDetailPage({ params }: PageProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {order.items.map((item: OrderItem) => (
-                      <tr key={item.productId}>
+                    {order.items.map((item: OrderItem, idx: number) => (
+                      <tr key={item.productId || idx}>
                         <td className="px-5 py-3">
-                          <p className="font-medium text-slate-900">{item.productName}</p>
+                          <p className="font-medium text-slate-900">{item.productName || item.name}</p>
                           <p className="text-xs text-slate-400 font-mono">{item.sku}</p>
                         </td>
                         <td className="px-4 py-3 text-right text-slate-700">{item.qty}</td>
@@ -135,33 +179,15 @@ export default function OrderDetailPage({ params }: PageProps) {
                   </div>
                 </div>
               </div>
-
-              {/* Admin notes */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <h2 className="font-bold text-slate-900 mb-3">Admin Notes</h2>
-                <textarea
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Add internal notes about this order…"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                />
-                <button
-                  onClick={saveNotes}
-                  className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
-                >
-                  Save Notes
-                </button>
-              </div>
             </div>
 
             {/* Right — customer + status + delivery */}
             <div className="space-y-5">
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <h2 className="font-bold text-slate-900 mb-4">Customer</h2>
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-3 mb-3">
                   <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">
-                    {order.customerName[0]}
+                    {order.customerName ? order.customerName[0] : "C"}
                   </div>
                   <div>
                     <p className="font-semibold text-sm text-slate-900">{order.customerName}</p>
@@ -179,10 +205,7 @@ export default function OrderDetailPage({ params }: PageProps) {
                 <div className="relative">
                   <select
                     value={status}
-                    onChange={(e) => {
-                      setStatus(e.target.value as OrderStatus);
-                      toast.success(`Status updated to ${e.target.value}`);
-                    }}
+                    onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none cursor-pointer"
                   >
                     {ORDER_STATUSES.map((s) => (

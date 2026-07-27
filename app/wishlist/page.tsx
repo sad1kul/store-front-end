@@ -2,27 +2,47 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Heart, ShoppingCart, Trash2 } from "lucide-react";
+import { Heart, ShoppingCart, Trash2, Loader2 } from "lucide-react";
 import { useWishlistStore } from "@/lib/store/wishlistStore";
 import { useCartStore } from "@/lib/store/cartStore";
-import { allProducts } from "@/lib/mock-data";
+import { getProductsApi } from "@/lib/api/products";
+import { Product } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
-
 export default function WishlistPage() {
   const { ids, toggle } = useWishlistStore();
   const addItem = useCartStore((s) => s.addItem);
-  const [mounted, setMounted] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    queueMicrotask(() => setMounted(true));
-  }, []);
+    if (ids.length === 0) {
+      setProducts([]);
+      setIsLoading(false);
+      return;
+    }
 
-  if (!mounted) return null;
+    getProductsApi()
+      .then((res) => {
+        if (res.success && res.data) {
+          setProducts(res.data.products.filter((p) => ids.includes(p.id)));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [ids]);
 
-  const products = allProducts.filter((p) => ids.includes(p.id));
+  if (isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-24 flex justify-center">
+        <Loader2 size={32} className="animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -59,7 +79,7 @@ export default function WishlistPage() {
               >
                 <Link href={`/products/${product.slug}`}>
                   <img
-                    src={product.images[0]}
+                    src={product.images[0] || ""}
                     alt={product.name}
                     className="w-full aspect-video object-cover hover:scale-105 transition-transform duration-300"
                   />
@@ -80,7 +100,7 @@ export default function WishlistPage() {
                           name: product.name,
                           slug: product.slug,
                           sku: product.sku,
-                          image: product.images[0],
+                          image: product.images[0] || "",
                           retailPrice: product.retailPrice,
                           bulkPricingTiers: product.bulkPricingTiers,
                           unitPrice: product.retailPrice,

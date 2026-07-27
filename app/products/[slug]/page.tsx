@@ -5,11 +5,11 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ShoppingCart, Star, Package, CheckCircle2, AlertCircle,
-  ChevronLeft, ChevronRight, Shield, Truck
+  ChevronLeft, ChevronRight, Shield, Truck, Loader2
 } from "lucide-react";
-import { allProducts } from "@/lib/mock-data";
-import { ReviewItem } from "@/lib/types";
-import { useCartStore, getApplicableBulkPrice } from "@/lib/store/cartStore";
+import { getProductBySlugApi } from "@/lib/api/products";
+import { Product, ReviewItem } from "@/lib/types";
+import { useCartStore } from "@/lib/store/cartStore";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useReviewStore } from "@/lib/store/reviewStore";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
@@ -24,26 +24,76 @@ interface PageProps {
 }
 
 export default function ProductDetailPage({ params }: PageProps) {
-  const product = allProducts.find((p) => p.slug === params.slug);
-  if (!product) notFound();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFoundState, setNotFoundState] = useState(false);
 
   const { user } = useAuthStore();
   const addItem = useCartStore((s) => s.addItem);
   const isBulkApproved = user?.role === "bulk_buyer" && user.bulkStatus === "approved";
   const getReviews = useReviewStore((s) => s.getReviews);
-  const liveReviews = getReviews(product.id);
 
   const [activeImage, setActiveImage] = useState(0);
   const [qty, setQty] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    addRecentlyViewed(product);
-  }, [product.id]);
+    setIsLoading(true);
+    getProductBySlugApi(params.slug)
+      .then((res) => {
+        if (res.success && res.data?.product) {
+          setProduct(res.data.product);
+          addRecentlyViewed(res.data.product);
+        } else {
+          setNotFoundState(true);
+        }
+      })
+      .catch((err) => {
+        toast.error("Failed to load product details", {
+          action: {
+            label: "Retry",
+            onClick: () => window.location.reload(),
+          },
+        });
+        setNotFoundState(true);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [params.slug]);
 
-  const bulkPrice = isBulkApproved
-    ? getApplicableBulkPrice(product.bulkPricingTiers, qty)
-    : null;
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-24 flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (notFoundState || !product) {
+    return (
+      <div className="max-w-md mx-auto py-24 text-center px-4">
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Product Not Found</h2>
+        <p className="text-slate-500 mb-4 text-sm">The product you are looking for does not exist.</p>
+        <Link href="/products" className="text-indigo-600 font-semibold">← Back to Products</Link>
+      </div>
+    );
+  }
+
+  const liveReviews = getReviews(product.id);
+
+  // Calculate tier price if bulk buyer
+  let bulkPrice: number | null = null;
+  if (isBulkApproved && product.bulkPricingTiers) {
+    for (const tier of product.bulkPricingTiers) {
+      const withinMax = tier.maxQty === null || qty <= tier.maxQty;
+      if (qty >= tier.minQty && withinMax) {
+        bulkPrice = tier.price;
+        break;
+      }
+    }
+  }
+
   const displayPrice = bulkPrice ?? product.retailPrice;
   const hasBulkDiscount = bulkPrice !== null && bulkPrice < product.retailPrice;
   const savings = hasBulkDiscount ? (product.retailPrice - displayPrice) * qty : 0;
@@ -59,7 +109,7 @@ export default function ProductDetailPage({ params }: PageProps) {
       name: product.name,
       slug: product.slug,
       sku: product.sku,
-      image: product.images[0],
+      image: product.images[0] || "",
       retailPrice: product.retailPrice,
       bulkPricingTiers: product.bulkPricingTiers,
       unitPrice: displayPrice,
@@ -93,7 +143,7 @@ export default function ProductDetailPage({ params }: PageProps) {
               key={activeImage}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              src={product.images[activeImage]}
+              src={product.images[activeImage] || ""}
               alt={product.name}
               className="w-full h-full object-cover"
             />
@@ -149,7 +199,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                 ))}
               </div>
               <span className="text-sm text-slate-600">
-                {avgRating.toFixed(1)} ({product.reviews?.length} reviews)
+                {avgRating.toFixed(1)} ({product.reviews?.length || 0} reviews)
               </span>
             </div>
           )}
@@ -194,7 +244,7 @@ export default function ProductDetailPage({ params }: PageProps) {
           <p className="text-xs text-slate-400 mb-6">SKU: <span className="font-mono">{product.sku}</span></p>
 
           {/* Bulk Pricing Table */}
-          {isBulkApproved && (
+          {isBulkApproved && product.bulkPricingTiers && (
             <div className="mb-6">
               <BulkPricingTable tiers={product.bulkPricingTiers} currentQty={qty} />
             </div>
@@ -257,7 +307,7 @@ export default function ProductDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Reviews section — live from reviewStore (seeded + submitted) */}
+      {/* Reviews section */}
       <section className="mt-16 border-t border-slate-100 pt-12">
         <div className="flex items-end justify-between mb-8">
           <h2 className="text-2xl font-bold text-slate-900">

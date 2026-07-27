@@ -1,31 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { checkoutSchema, CheckoutFormData, SA_PROVINCES } from "@/lib/validations/checkoutSchema";
 import { useCartStore } from "@/lib/store/cartStore";
+import { createOrderApi } from "@/lib/api/orders";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CreditCard, Lock, CheckCircle2, Package, ChevronRight,
-  Info, ArrowRight, Loader2
+  CreditCard, Lock, CheckCircle2, ChevronRight,
+  ArrowRight, Loader2, AlertCircle
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function CheckoutPage() {
-  const { items, getSubtotal, getVAT, getTotal, getBulkSavings, clearCart } = useCartStore();
-  const router = useRouter();
+  const { items, serverValidatedCart, isValidating, validateWithServer, clearCart } = useCartStore();
   const [paymentMethod, setPaymentMethod] = useState<"card" | "eft">("card");
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const orderNumber = `STS-${Math.floor(100000 + Math.random() * 900000)}`;
+  const [placedOrderNumber, setPlacedOrderNumber] = useState<string>("");
 
-  const subtotal = getSubtotal();
-  const vat = getVAT();
-  const total = getTotal();
-  const savings = getBulkSavings();
+  useEffect(() => {
+    if (items.length > 0) {
+      validateWithServer();
+    }
+  }, [items, validateWithServer]);
 
   const {
     register,
@@ -36,12 +37,36 @@ export default function CheckoutPage() {
     defaultValues: { paymentMethod: "card" },
   });
 
-  const onSubmit = async (_data: CheckoutFormData) => {
+  const onSubmit = async (data: CheckoutFormData) => {
+    if (!serverValidatedCart) {
+      toast.error("Cart must be validated with the server before placing order.");
+      return;
+    }
+
     setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsSubmitting(false);
-    setShowSuccess(true);
-    clearCart();
+    try {
+      const res = await createOrderApi({
+        items: items.map((i) => ({ productId: i.id, qty: i.qty })),
+        address: data.address,
+        city: data.city,
+        province: data.province,
+        postalCode: data.postalCode,
+        deliveryAddress: `${data.address}, ${data.city}, ${data.province}, ${data.postalCode}`,
+        total: serverValidatedCart.total, // Pass server-validated total for server verification
+      });
+
+      if (res.success && res.data?.order) {
+        setPlacedOrderNumber(res.data.order.id);
+        setShowSuccess(true);
+        clearCart();
+      } else {
+        toast.error("Failed to place order.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to place order");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const InputField = ({
@@ -79,6 +104,8 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
+  const isOrderButtonDisabled = isSubmitting || isValidating || !serverValidatedCart;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -177,18 +204,23 @@ export default function CheckoutPage() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold py-4 rounded-xl transition-colors text-lg"
+              disabled={isOrderButtonDisabled}
+              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white font-bold py-4 rounded-xl transition-colors text-lg"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 size={20} className="animate-spin" />
                   Processing...
                 </>
+              ) : isValidating ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Validating totals with server...
+                </>
               ) : (
                 <>
                   <Lock size={18} />
-                  Place Order — {formatCurrency(total)}
+                  Place Order — {serverValidatedCart ? formatCurrency(serverValidatedCart.total) : "Calculating..."}
                 </>
               )}
             </button>
@@ -200,46 +232,66 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sticky top-24">
             <h2 className="font-bold text-slate-900 mb-4 text-lg">Order Summary</h2>
 
-            {/* Items */}
-            <div className="space-y-3 mb-5 max-h-60 overflow-y-auto">
-              {items.map((item) => (
-                <div key={item.id} className="flex gap-3">
-                  <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover border border-slate-100 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-slate-800 truncate">{item.name}</p>
-                    <p className="text-xs text-slate-400">Qty: {item.qty}</p>
+            {isValidating ? (
+              <div className="py-12 text-center text-slate-500 space-y-2">
+                <Loader2 size={24} className="animate-spin mx-auto text-indigo-600" />
+                <p className="text-xs">Fetching server-validated pricing...</p>
+              </div>
+            ) : serverValidatedCart ? (
+              <>
+                {/* Items */}
+                <div className="space-y-3 mb-5 max-h-60 overflow-y-auto">
+                  {serverValidatedCart.items.map((item) => (
+                    <div key={item.productId} className="flex gap-3">
+                      <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover border border-slate-100 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-slate-800 truncate">{item.name}</p>
+                        <p className="text-xs text-slate-400">Qty: {item.qty} {item.isBulkPriced && <span className="text-indigo-600 font-semibold">(Bulk)</span>}</p>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-900 shrink-0">
+                        {formatCurrency(item.lineTotal)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t border-slate-100 pt-4 space-y-2.5 mb-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Subtotal</span>
+                    <span className="font-medium">{formatCurrency(serverValidatedCart.subtotal)}</span>
                   </div>
-                  <p className="text-sm font-semibold text-slate-900 shrink-0">
-                    {formatCurrency(item.unitPrice * item.qty)}
-                  </p>
+                  {serverValidatedCart.bulkSavings > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-emerald-600">Bulk Savings</span>
+                      <span className="font-medium text-emerald-600">−{formatCurrency(serverValidatedCart.bulkSavings)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">VAT (15%)</span>
+                    <span className="font-medium">{formatCurrency(serverValidatedCart.vat)}</span>
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="border-t border-slate-100 pt-4 space-y-2.5 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Subtotal</span>
-                <span className="font-medium">{formatCurrency(subtotal)}</span>
-              </div>
-              {savings > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-emerald-600">Bulk Discount</span>
-                  <span className="font-medium text-emerald-600">−{formatCurrency(savings)}</span>
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="flex justify-between font-bold text-slate-900 text-lg">
+                    <span>Total</span>
+                    <span>{formatCurrency(serverValidatedCart.total)}</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Server-calculated total (including 15% VAT)</p>
                 </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">VAT (15%)</span>
-                <span className="font-medium">{formatCurrency(vat)}</span>
+              </>
+            ) : (
+              <div className="py-8 text-center text-rose-500 text-sm space-y-2">
+                <AlertCircle size={24} className="mx-auto" />
+                <p>Failed to validate cart with server.</p>
+                <button
+                  onClick={() => validateWithServer()}
+                  className="text-xs text-indigo-600 underline font-semibold"
+                >
+                  Click to retry validation
+                </button>
               </div>
-            </div>
-
-            <div className="border-t border-slate-100 pt-4">
-              <div className="flex justify-between font-bold text-slate-900 text-lg">
-                <span>Total</span>
-                <span>{formatCurrency(total)}</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">Including VAT (15%)</p>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -267,7 +319,7 @@ export default function CheckoutPage() {
               </p>
               <div className="bg-slate-50 rounded-xl px-4 py-3 mb-6">
                 <p className="text-xs text-slate-500 mb-1">Order Reference</p>
-                <p className="text-lg font-bold text-indigo-600 font-mono">{orderNumber}</p>
+                <p className="text-lg font-bold text-indigo-600 font-mono">{placedOrderNumber}</p>
                 <p className="text-xs text-slate-400 mt-1">Estimated delivery: 2–5 business days</p>
               </div>
               <Link

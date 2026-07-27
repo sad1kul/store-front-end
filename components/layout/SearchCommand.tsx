@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, ArrowRight } from "lucide-react";
+import { Search, X, ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { allProducts } from "@/lib/mock-data";
+import { getProductsApi } from "@/lib/api/products";
+import { Product } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
-
 
 interface SearchCommandProps {
   onClose: () => void;
@@ -14,6 +14,8 @@ interface SearchCommandProps {
 
 function SearchModal({ onClose }: SearchCommandProps) {
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -23,19 +25,29 @@ function SearchModal({ onClose }: SearchCommandProps) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [onClose]);
 
-  const results = query.trim().length < 2
-    ? []
-    : allProducts.filter((p) => {
-        const q = query.toLowerCase();
-        return (
-          p.name.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q) ||
-          p.tags?.some((t: string) => t.toLowerCase().includes(q))
-        );
-      }).slice(0, 8);
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      getProductsApi({ search: query, limit: 8 })
+        .then((res) => {
+          if (res.success && res.data) {
+            setResults(res.data.products);
+          }
+        })
+        .catch(() => setResults([]))
+        .finally(() => setIsLoading(false));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   return (
     <motion.div
@@ -62,6 +74,7 @@ function SearchModal({ onClose }: SearchCommandProps) {
             placeholder="Search products, SKUs, categories…"
             className="flex-1 text-sm text-slate-900 placeholder-slate-400 outline-none bg-transparent"
           />
+          {isLoading && <Loader2 size={16} className="animate-spin text-indigo-600 shrink-0" />}
           {query && (
             <button onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600">
               <X size={16} />
@@ -77,7 +90,7 @@ function SearchModal({ onClose }: SearchCommandProps) {
             <div className="px-4 py-8 text-center text-slate-400 text-sm">
               Type at least 2 characters to search
             </div>
-          ) : results.length === 0 ? (
+          ) : results.length === 0 && !isLoading ? (
             <div className="px-4 py-8 text-center text-slate-400 text-sm">
               No products found for &ldquo;{query}&rdquo;
             </div>
@@ -91,7 +104,7 @@ function SearchModal({ onClose }: SearchCommandProps) {
                     className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors group"
                   >
                     <img
-                      src={p.images[0]}
+                      src={p.images[0] || ""}
                       alt={p.name}
                       className="w-10 h-10 rounded-lg object-cover shrink-0"
                     />
@@ -117,7 +130,7 @@ function SearchModal({ onClose }: SearchCommandProps) {
           <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
             <p className="text-xs text-slate-400">{results.length} result{results.length !== 1 ? "s" : ""}</p>
             <Link
-              href={`/products?q=${encodeURIComponent(query)}`}
+              href={`/products?search=${encodeURIComponent(query)}`}
               onClick={onClose}
               className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
             >

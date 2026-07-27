@@ -17,7 +17,11 @@ export interface WholesaleApplication {
   notes?: string;
   submittedAt: string;
   appliedAt?: string;
+  appliedDate?: string;
   status: ApplicationStatus;
   shopPhotos?: string[];
+  approvedDate?: string;
+  rejectedDate?: string;
+  adminNotes?: string;
   rejectionReason?: string;
 }

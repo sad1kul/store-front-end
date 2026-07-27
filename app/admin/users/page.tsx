@@ -1,28 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
-import { allUsers } from "@/lib/mock-data";
+import { getUsersApi, updateUserApi } from "@/lib/api/users";
 import { UserAccount } from "@/lib/types";
-import { Search, Lock, Eye, UserX } from "lucide-react";
+import { Search, Eye, UserX, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 type RoleFilter = "All" | "retail" | "bulk_buyer" | "admin";
 
 export default function AdminUsersPage() {
   const { user } = useAuthStore();
-  const [users, setUsers] = useState<UserAccount[]>(allUsers);
+  const [users, setUsers] = useState<UserAccount[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("All");
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadUsers = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getUsersApi();
+      if (res.success && res.data) {
+        setUsers(res.data.users);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to fetch users", {
+        action: {
+          label: "Retry",
+          onClick: () => loadUsers(),
+        },
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      loadUsers();
+    }
+  }, [user]);
 
   if (!user || user.role !== "admin") {
     return <AdminGuard />;
   }
-
 
   const filtered = users.filter((u) => {
     const matchesRole = roleFilter === "All" || u.role === roleFilter;
@@ -32,9 +57,20 @@ export default function AdminUsersPage() {
     return matchesRole && matchesSearch;
   });
 
-  const deactivate = (id: string) => {
-    setUsers((us) => us.map((u) => u.id === id ? { ...u, status: u.status === "active" ? "inactive" : "active" } : u));
-    toast.success("User status updated.");
+  const deactivate = async (id: string) => {
+    const target = users.find((u) => u.id === id);
+    if (!target) return;
+    const newStatus = target.status === "active" ? "inactive" : "active";
+
+    try {
+      const res = await updateUserApi(id, { status: newStatus });
+      if (res.success) {
+        setUsers((us) => us.map((u) => u.id === id ? { ...u, status: newStatus } : u));
+        toast.success(`User status updated to ${newStatus}.`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update user status");
+    }
   };
 
   const roleFilters: RoleFilter[] = ["All", "retail", "bulk_buyer", "admin"];
@@ -78,64 +114,70 @@ export default function AdminUsersPage() {
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="px-6 py-3 text-left">User</th>
-                <th className="px-4 py-3 text-left hidden md:table-cell">Role</th>
-                <th className="px-4 py-3 text-left hidden lg:table-cell">Joined</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-3">
-                      <img src={u.avatar} alt={u.name} className="w-9 h-9 rounded-full object-cover" />
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{u.name}</p>
-                        <p className="text-xs text-slate-500">{u.email}</p>
-                        {u.businessName && (
-                          <p className="text-xs text-indigo-600">{u.businessName}</p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 hidden md:table-cell">
-                    <StatusBadge status={u.role} />
-                    {u.bulkStatus && (
-                      <StatusBadge status={u.bulkStatus} className="ml-1" />
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-500 hidden lg:table-cell">{u.joinedDate}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={u.status ?? "active"} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <Link
-                        href={`/admin/users/${u.id}`}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
-                        title="View User"
-                      >
-                        <Eye size={14} />
-                      </Link>
-                      <button
-                        onClick={() => deactivate(u.id)}
-                        className="p-1.5 text-slate-400 hover:text-amber-500 transition-colors rounded-lg hover:bg-amber-50"
-                        title={u.status === "active" ? "Deactivate" : "Reactivate"}
-                      >
-                        <UserX size={14} />
-                      </button>
-                    </div>
-                  </td>
+          {isLoading ? (
+            <div className="py-20 flex justify-center items-center">
+              <Loader2 size={32} className="animate-spin text-indigo-600" />
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left">User</th>
+                  <th className="px-4 py-3 text-left hidden md:table-cell">Role</th>
+                  <th className="px-4 py-3 text-left hidden lg:table-cell">Joined</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((u) => (
+                  <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-3">
+                        <img src={u.avatar || "https://placehold.co/100x100/10B981/FFFFFF?text=U"} alt={u.name} className="w-9 h-9 rounded-full object-cover" />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{u.name}</p>
+                          <p className="text-xs text-slate-500">{u.email}</p>
+                          {u.businessName && (
+                            <p className="text-xs text-indigo-600">{u.businessName}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <StatusBadge status={u.role} />
+                      {u.bulkStatus && (
+                        <StatusBadge status={u.bulkStatus} className="ml-1" />
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-500 hidden lg:table-cell">{u.joinedDate}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={u.status ?? "active"} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 justify-end">
+                        <Link
+                          href={`/admin/users/${u.id}`}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
+                          title="View User"
+                        >
+                          <Eye size={14} />
+                        </Link>
+                        <button
+                          onClick={() => deactivate(u.id)}
+                          className="p-1.5 text-slate-400 hover:text-amber-500 transition-colors rounded-lg hover:bg-amber-50"
+                          title={u.status === "active" ? "Deactivate" : "Reactivate"}
+                        >
+                          <UserX size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {!isLoading && filtered.length === 0 && (
             <div className="text-center py-10 text-slate-400 text-sm">No users found.</div>
           )}
         </div>

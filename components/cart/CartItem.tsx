@@ -62,9 +62,9 @@ export default function CartItem({ item }: { item: ReturnType<typeof useCartStor
 
           {/* Price */}
           <div className="text-right">
-            <p className="text-sm font-bold text-slate-900">{formatCurrency(item.unitPrice * item.qty)}</p>
+            <p className="text-sm font-bold text-slate-900">{formatCurrency((item.unitPrice ?? item.retailPrice) * item.qty)}</p>
             {item.qty > 1 && (
-              <p className="text-xs text-slate-400">{formatCurrency(item.unitPrice)} each</p>
+              <p className="text-xs text-slate-400">{formatCurrency(item.unitPrice ?? item.retailPrice)} each</p>
             )}
           </div>
         </div>

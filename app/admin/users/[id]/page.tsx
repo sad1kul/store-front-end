@@ -1,17 +1,16 @@
 "use client";
 
-import { notFound } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
-import { allUsers, allOrders, allApps } from "@/lib/mock-data";
-import { Order } from "@/lib/types";
+import { getUserByIdApi } from "@/lib/api/users";
+import { UserAccount } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import {
-  ChevronLeft, User, Mail, Calendar, Package, ShoppingBag,
-  Building2, Lock, BadgeCheck, Clock, ExternalLink,
+  ChevronLeft, Mail, Calendar, Building2, BadgeCheck, Loader2,
 } from "lucide-react";
 
 interface PageProps {
@@ -20,18 +19,49 @@ interface PageProps {
 
 export default function UserDetailPage({ params }: PageProps) {
   const { user: adminUser } = useAuthStore();
+  const [profile, setProfile] = useState<UserAccount | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (adminUser?.role === "admin") {
+      getUserByIdApi(params.id)
+        .then((res) => {
+          if (res.success && res.data?.user) {
+            setProfile(res.data.user);
+          }
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [adminUser, params.id]);
 
   if (!adminUser || adminUser.role !== "admin") {
     return <AdminGuard />;
   }
 
-  const profile = allUsers.find((u) => u.id === params.id);
-  if (!profile) notFound();
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)]">
+        <AdminSidebar />
+        <main className="flex-1 bg-slate-50 flex items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-indigo-600" />
+        </main>
+      </div>
+    );
+  }
 
-  const userOrders = allOrders.filter((o) => o.customerId === profile.id);
-  const application = allApps.find((a) => a.email === profile.email);
-
-  const totalSpent = userOrders.reduce((sum: number, o: Order) => sum + o.total, 0);
+  if (!profile) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)]">
+        <AdminSidebar />
+        <main className="flex-1 bg-slate-50 p-8 text-center">
+          <h2 className="text-xl font-bold text-slate-900 mb-2">User Not Found</h2>
+          <Link href="/admin/users" className="text-indigo-600 font-semibold">← Back to Users</Link>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
@@ -51,7 +81,7 @@ export default function UserDetailPage({ params }: PageProps) {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-5">
             <div className="flex items-start gap-4">
               <img
-                src={profile.avatar}
+                src={profile.avatar || "https://placehold.co/100x100/10B981/FFFFFF?text=U"}
                 alt={profile.name}
                 className="w-16 h-16 rounded-2xl object-cover shrink-0"
               />
@@ -88,11 +118,11 @@ export default function UserDetailPage({ params }: PageProps) {
               <div className="grid grid-cols-3 gap-3 mt-5 pt-5 border-t border-slate-100">
                 <div className="text-center p-3 bg-slate-50 rounded-xl">
                   <p className="text-xs text-slate-500 mb-1">Total Orders</p>
-                  <p className="text-xl font-bold text-slate-900">{userOrders.length}</p>
+                  <p className="text-xl font-bold text-slate-900">{profile.totalOrders || 0}</p>
                 </div>
                 <div className="text-center p-3 bg-slate-50 rounded-xl">
                   <p className="text-xs text-slate-500 mb-1">Total Spent</p>
-                  <p className="text-xl font-bold text-slate-900">{formatCurrency(totalSpent)}</p>
+                  <p className="text-xl font-bold text-slate-900">{formatCurrency(profile.totalSpent || 0)}</p>
                 </div>
                 <div className="text-center p-3 bg-emerald-50 rounded-xl">
                   <p className="text-xs text-emerald-600 mb-1">Bulk Status</p>
@@ -102,91 +132,6 @@ export default function UserDetailPage({ params }: PageProps) {
                     {profile.bulkStatus ?? "—"}
                   </p>
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-5">
-            {/* Order history */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="font-bold text-slate-900">Order History</h2>
-                <span className="text-xs text-slate-400">{userOrders.length} orders</span>
-              </div>
-              {userOrders.length === 0 ? (
-                <div className="p-6 text-center text-slate-400 text-sm">No orders yet</div>
-              ) : (
-                <ul className="divide-y divide-slate-50">
-                  {userOrders.map((order: Order) => (
-                    <li key={order.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50">
-                      <ShoppingBag size={14} className="text-slate-400 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 font-mono">{order.id}</p>
-                        <p className="text-xs text-slate-400">{order.date}</p>
-                      </div>
-                      <p className="text-sm font-bold text-slate-900">{formatCurrency(order.total)}</p>
-                      <StatusBadge status={order.status} />
-                      <Link href={`/admin/orders/${order.id}`} className="text-slate-400 hover:text-indigo-600">
-                        <ExternalLink size={13} />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Wholesale application */}
-            {(profile.role === "bulk_buyer" || application) && (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100">
-                  <h2 className="font-bold text-slate-900">Wholesale Application</h2>
-                </div>
-                {application ? (
-                  <div className="p-5 space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Business Name</span>
-                      <span className="font-medium text-slate-900">{application.businessName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Business Type</span>
-                      <span className="font-medium text-slate-900">{application.businessType}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Monthly Order Value</span>
-                      <span className="font-medium text-slate-900">{application.monthlyOrderValue}</span>
-                    </div>
-                    {application.shopAddress && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Shop Address</span>
-                        <span className="font-medium text-slate-900 text-right max-w-[55%]">{application.shopAddress}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Status</span>
-                      <span className={`font-bold capitalize ${
-                        application.status === "approved" ? "text-emerald-600"
-                        : application.status === "pending" ? "text-amber-600"
-                        : "text-rose-600"
-                      }`}>
-                        {application.status}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Applied</span>
-                      <span className="font-medium text-slate-900">{application.appliedAt ? new Date(application.appliedAt).toLocaleDateString("en-ZA") : "—"}</span>
-                    </div>
-                    <div className="pt-2">
-                      <Link
-                        href={`/admin/bulk-approvals`}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                      >
-                        <BadgeCheck size={13} /> Manage in Bulk Approvals
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-6 text-center text-slate-400 text-sm">No application on file</div>
-                )}
               </div>
             )}
           </div>

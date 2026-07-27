@@ -1,27 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import AdminGuard from "@/components/layout/AdminGuard";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useContentStore } from "@/lib/store/contentStore";
-import { allProducts } from "@/lib/mock-data";
-import { Lock, RefreshCw, Check, LayoutDashboard } from "lucide-react";
+import { getProductsApi } from "@/lib/api/products";
+import { Product } from "@/lib/types";
+import { RefreshCw, Check, LayoutDashboard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
-
 
 export default function AdminContentPage() {
   const { user } = useAuthStore();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+
   const {
     heroHeading, setHeroHeading,
     heroSubtext, setHeroSubtext,
     promoBannerText, setPromoBannerText,
     featuredProductIds, toggleFeatured,
-    reset,
+    reset, fetchContent,
   } = useContentStore();
 
-
+  useEffect(() => {
+    if (user?.role === "admin") {
+      fetchContent();
+      getProductsApi()
+        .then((res) => {
+          if (res.success && res.data) {
+            setProducts(res.data.products);
+          }
+        })
+        .catch(() => {
+          toast.error("Failed to load products list");
+        })
+        .finally(() => {
+          setIsLoadingProducts(false);
+        });
+    }
+  }, [user, fetchContent]);
 
   if (!user || user.role !== "admin") {
     return <AdminGuard />;
@@ -35,8 +53,6 @@ export default function AdminContentPage() {
     reset();
     toast("Content reset to defaults", { icon: "↩️" });
   };
-
-
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
@@ -117,37 +133,43 @@ export default function AdminContentPage() {
               <p className="text-xs text-slate-500 mb-4">
                 Toggle products to include or exclude them from the Featured section on the homepage.
               </p>
-              <div className="grid sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">
-                {allProducts.map((p) => {
-                  const active = featuredProductIds.includes(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => toggleFeatured(p.id)}
-                      className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
-                        active
-                          ? "border-indigo-300 bg-indigo-50"
-                          : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                    >
-                      <img
-                        src={p.images[0]}
-                        alt={p.name}
-                        className="w-10 h-10 rounded-lg object-cover shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-900 line-clamp-1">{p.name}</p>
-                        <p className="text-xs text-slate-400">{p.sku}</p>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                        active ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white"
-                      }`}>
-                        {active && <Check size={11} />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              {isLoadingProducts ? (
+                <div className="py-8 flex justify-center">
+                  <Loader2 size={24} className="animate-spin text-indigo-600" />
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">
+                  {products.map((p) => {
+                    const active = featuredProductIds.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => toggleFeatured(p.id)}
+                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                          active
+                            ? "border-indigo-300 bg-indigo-50"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <img
+                          src={p.images[0] || ""}
+                          alt={p.name}
+                          className="w-10 h-10 rounded-lg object-cover shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-900 line-clamp-1">{p.name}</p>
+                          <p className="text-xs text-slate-400">{p.sku}</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                          active ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white"
+                        }`}>
+                          {active && <Check size={11} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -158,7 +180,7 @@ export default function AdminContentPage() {
                 Save Content
               </button>
               <p className="text-xs text-slate-400">
-                Changes are already live via Zustand — Save is a confirmation action.
+                Changes are already live via API — Save is a confirmation action.
               </p>
             </div>
           </div>

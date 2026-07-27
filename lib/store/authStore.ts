@@ -1,12 +1,6 @@
-/**
- * NOTE: This auth is mock/demo only. Replace with a real server-side API auth layer (e.g. NextAuth.js or JWT) before production.
- */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import bcrypt from "bcryptjs";
-import users from "@/lib/mock-data/users.json";
-
-import { UserAccount } from "@/lib/types";
+import { loginApi, refreshApi, logoutApi, meApi } from "@/lib/api/auth";
 
 export type UserRole = "guest" | "retail" | "bulk_buyer" | "admin";
 export type BulkStatus = "approved" | "pending" | "rejected" | null;
@@ -26,13 +20,15 @@ export interface AuthUser {
 
 interface AuthState {
   user: AuthUser | null;
+  accessToken: string | null;
   isAuthenticated: boolean;
+  isInitializing: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
-  switchRole: (role: UserRole) => void; // DevTools only
+  logout: () => Promise<void>;
+  initAuth: () => Promise<string | null>;
+  switchRole: (role: UserRole) => void;
 }
 
-// Quick preset users for DevTools role switcher
 const rolePresets: Record<UserRole, AuthUser | null> = {
   guest: null,
   retail: {
@@ -65,43 +61,67 @@ const rolePresets: Record<UserRole, AuthUser | null> = {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
+      accessToken: null,
       isAuthenticated: false,
+      isInitializing: true,
 
       login: async (email, password) => {
-        const found = (users as unknown as UserAccount[]).find((u) => u.email === email);
-        if (!found) {
+        try {
+          const res = await loginApi(email, password);
+          if (res.success && res.data) {
+            set({
+              user: res.data.user,
+              accessToken: res.data.accessToken,
+              isAuthenticated: true,
+            });
+            return { success: true };
+          }
           return { success: false, error: "Invalid email or password." };
+        } catch (err: any) {
+          return { success: false, error: err.message || "Invalid email or password." };
         }
-        const isValid = await bcrypt.compare(password, found.password ?? "");
-        if (!isValid) {
-          return { success: false, error: "Invalid email or password." };
-        }
-        const user: AuthUser = {
-          id: found.id,
-          name: found.name,
-          email: found.email,
-          role: found.role as UserRole,
-          bulkStatus: found.bulkStatus ?? null,
-          businessName: found.businessName,
-          avatar: found.avatar,
-          totalOrders: found.totalOrders,
-          totalSpent: found.totalSpent,
-          bulkSavings: found.bulkSavings,
-        };
-        set({ user, isAuthenticated: true });
-        return { success: true };
       },
 
-      logout: () => set({ user: null, isAuthenticated: false }),
+      logout: async () => {
+        try {
+          await logoutApi();
+        } catch {
+          // ignore logout errors
+        } finally {
+          set({ user: null, accessToken: null, isAuthenticated: false });
+        }
+      },
+
+      initAuth: async () => {
+        try {
+          const res = await refreshApi();
+          if (res.success && res.data) {
+            set({
+              user: res.data.user,
+              accessToken: res.data.accessToken,
+              isAuthenticated: true,
+              isInitializing: false,
+            });
+            return res.data.accessToken;
+          }
+        } catch {
+          // Silent refresh failed — guest user
+        }
+        set({ user: null, accessToken: null, isAuthenticated: false, isInitializing: false });
+        return null;
+      },
 
       switchRole: (role) => {
         const preset = rolePresets[role];
         set({ user: preset, isAuthenticated: preset !== null });
       },
     }),
-    { name: "smoke-time-auth" }
+    {
+      name: "smoke-time-auth",
+      // Exclude accessToken from localStorage — lives in memory only
+      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+    }
   )
 );
-
