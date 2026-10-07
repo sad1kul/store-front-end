@@ -25,6 +25,7 @@ export interface Product {
   moq?: number;
   images: string[];
   featured?: boolean;
+  status?: "draft" | "active" | "inactive";
   tags?: string[];
   reviews?: ProductReview[];
 }

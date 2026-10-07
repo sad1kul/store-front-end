@@ -1,9 +1,26 @@
 "use client";
 
 import AdminSidebar from "@/components/layout/AdminSidebar";
-import { Lock } from "lucide-react";
+import { useAuthStore } from "@/lib/store/authStore";
+import { Lock, Loader2 } from "lucide-react";
 
 export default function AdminGuard() {
+  const { isInitializing } = useAuthStore();
+
+  if (isInitializing) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)]">
+        <AdminSidebar />
+        <main className="flex-1 flex items-center justify-center p-8 bg-slate-50">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-3" />
+            <p className="text-slate-500 text-sm">Verifying permissions...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
       <AdminSidebar />

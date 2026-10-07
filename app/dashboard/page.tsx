@@ -176,7 +176,7 @@ export default function DashboardPage() {
                           <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
                           <td className="px-4 py-3 text-right">
                             <button
-                              onClick={() => window.open(`/admin/orders/${order.id}`, "_blank")}
+                              onClick={() => window.open(`/orders/${order.id}`, "_blank")}
                               className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium"
                             >
                               <FileText size={12} /> View / Print

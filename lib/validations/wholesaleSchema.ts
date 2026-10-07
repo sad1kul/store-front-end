@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // step 1 - business details
-export const businessDetailsSchema = z.object({
+export const businessDetailsBaseSchema = z.object({
   businessName: z
     .string()
     .min(2, "Business name must be at least 2 characters")
@@ -19,6 +19,10 @@ export const businessDetailsSchema = z.object({
       /^(\+27|0)[6-8][0-9]{8}$/,
       "Enter a valid SA cellphone number (e.g. 082 123 4567)"
     ),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string(),
   businessRegistration: z
     .string()
     .max(50, "Registration number is too long")
@@ -31,6 +35,14 @@ export const businessDetailsSchema = z.object({
     .string()
     .min(1, "Please select your expected monthly order value"),
 });
+
+export const businessDetailsSchema = businessDetailsBaseSchema.refine(
+  (data) => data.password === data.confirmPassword,
+  {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  }
+);
 
 // step 2 - shop location
 export const shopDetailsSchema = z.object({
@@ -62,9 +74,13 @@ export const termsSchema = z.object({
   }),
 });
 
-export const wholesaleSchema = businessDetailsSchema
+export const wholesaleSchema = businessDetailsBaseSchema
   .merge(shopDetailsSchema)
-  .merge(termsSchema);
+  .merge(termsSchema)
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export type BusinessDetailsData = z.infer<typeof businessDetailsSchema>;
 export type ShopDetailsData = z.infer<typeof shopDetailsSchema>;

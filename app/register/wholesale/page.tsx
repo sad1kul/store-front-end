@@ -8,7 +8,6 @@ import {
   shopDetailsSchema,
   BusinessDetailsData,
   ShopDetailsData,
-  BUSINESS_TYPES,
   MONTHLY_ORDER_VALUES,
   SA_PROVINCES,
   YEARS_IN_BUSINESS,
@@ -34,8 +33,11 @@ import {
   BadgeCheck,
   Package,
   ChevronDown,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
+import { applyWholesaleApi } from "@/lib/api/wholesale";
 
 interface UploadedPhoto {
   id: string;
@@ -52,6 +54,9 @@ function StepBusinessDetails({
   onNext: (data: BusinessDetailsData) => void;
   savedData?: Partial<BusinessDetailsData>;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -182,6 +187,64 @@ function StepBusinessDetails({
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Account Password <span className="text-rose-500">*</span>
+          </label>
+          <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+            <Info size={11} /> Min. 8 characters — used to sign in once approved
+          </p>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              {...register("password")}
+              placeholder="••••••••"
+              className={`${inputCls(!!errors.password)} pr-10`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {errors.password && (
+            <p className="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+              <AlertCircle size={11} /> {errors.password.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Confirm Password <span className="text-rose-500">*</span>
+          </label>
+          <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+            <Info size={11} /> Re-enter your password
+          </p>
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              {...register("confirmPassword")}
+              placeholder="••••••••"
+              className={`${inputCls(!!errors.confirmPassword)} pr-10`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p className="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
+              <AlertCircle size={11} /> {errors.confirmPassword.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
             Business Type
           </label>
           {/* locked — only Wholesalers can apply right now */}
@@ -307,12 +370,6 @@ function StepShopDetails({
   };
 
   const onSubmit = (data: ShopDetailsData) => {
-    if (!photos.length) {
-      setPhotoError(
-        "Please upload at least 1 photo of your shop — required for verification."
-      );
-      return;
-    }
     onNext(data);
   };
 
@@ -321,9 +378,8 @@ function StepShopDetails({
       <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
         <p className="text-sm font-semibold text-emerald-800 mb-1">📍 Why we need your shop details</p>
         <p className="text-xs text-emerald-700 leading-relaxed">
-          Our verification team confirms business addresses and reviews shop photos to prevent
-          fraud. Uploading <strong>real, clear photos of your actual shop</strong> significantly
-          speeds up approval.
+          Our verification team reviews submitted business and address details. Supporting
+          documents may be requested separately through an approved secure channel.
         </p>
       </div>
 
@@ -466,13 +522,11 @@ function StepShopDetails({
       {/* photo upload */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-          Shop Photos <span className="text-rose-500">*</span>
-          <span className="text-slate-400 font-normal ml-2">(min. 1, max. 5)</span>
+          Shop Photos <span className="text-slate-400 font-normal ml-2">(local preview only)</span>
         </label>
         <p className="text-xs text-slate-400 mb-3 flex items-start gap-1.5">
           <Camera size={12} className="mt-0.5 shrink-0 text-indigo-400" />
-          Upload clear, well-lit photos of your shop interior or exterior. Blurry or
-          irrelevant images may delay approval.
+          File upload is not enabled yet. Selected files remain in this browser and are not submitted.
         </p>
 
         <div
@@ -573,8 +627,7 @@ function StepShopDetails({
 
         <p className="text-xs text-slate-400 mt-2">
           {photos.length}/5 photos uploaded
-          {!photos.length && " — at least 1 required"}
-          {photos.length > 0 && photos.length < 3 && " — more photos increase approval chances"}
+          {!photos.length && " — no files selected"}
         </p>
       </div>
 
@@ -603,7 +656,6 @@ function StepTerms({
   isLoading,
   businessData,
   shopData,
-  photos,
 }: {
   onSubmit: () => void;
   onBack: () => void;
@@ -688,7 +740,7 @@ function StepTerms({
         </div>
         <div className="mt-3 pt-3 border-t border-slate-200">
           <p className="text-xs text-slate-500">
-            📷 <strong>{photos.length}</strong> shop photo{photos.length !== 1 ? "s" : ""} attached
+            📷 Shop photos are not transmitted by this form
           </p>
         </div>
       </div>
@@ -699,19 +751,19 @@ function StepTerms({
         <div className="space-y-2">
           <p className="text-xs text-amber-700 flex gap-2">
             <span>📩</span>
-            <span>You'll receive an email confirming we received your application</span>
+            <span>Save the reference ID shown after a successful submission</span>
           </p>
           <p className="text-xs text-amber-700 flex gap-2">
             <span>🔍</span>
-            <span>Our team reviews your details and shop photos within 1–2 business days</span>
+            <span>Our team reviews the submitted business details</span>
           </p>
           <p className="text-xs text-amber-700 flex gap-2">
             <span>✅</span>
-            <span>If approved: you'll receive login credentials and pricing access via email</span>
+            <span>If approved, the store will contact you using the submitted details</span>
           </p>
           <p className="text-xs text-amber-700 flex gap-2">
             <span>❌</span>
-            <span>If rejected: you'll receive an email explaining the reason and how to re-apply</span>
+            <span>No automated email is promised until notifications are configured</span>
           </p>
         </div>
       </div>
@@ -878,12 +930,7 @@ function StepTerms({
   );
 }
 
-function SuccessScreen({ name, email }: { name: string; email: string }) {
-  const refId = `STS-APP-${Math.floor(10000 + Math.random() * 90000)}`;
-  const decisionDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString(
-    "en-ZA",
-    { weekday: "long", day: "numeric", month: "short" }
-  );
+function SuccessScreen({ name, email, applicationId }: { name: string; email: string; applicationId: string }) {
 
   return (
     <motion.div
@@ -919,47 +966,43 @@ function SuccessScreen({ name, email }: { name: string; email: string }) {
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Reference ID</span>
-            <span className="font-mono font-bold text-indigo-600">{refId}</span>
+            <span className="font-mono font-bold text-indigo-600">{applicationId}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500">Confirmation sent to</span>
+            <span className="text-slate-500">Contact email</span>
             <span className="font-semibold text-slate-900">{email}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500">Decision expected by</span>
-            <span className="font-semibold text-emerald-700">{decisionDate}</span>
           </div>
         </div>
       </div>
 
       <div className="space-y-2 text-left mb-8">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest text-center mb-3">
-          What to expect in your inbox
+          What happens next
         </p>
         <div className="flex items-start gap-3 p-3 bg-white border border-slate-100 rounded-xl">
           <span className="text-lg">📩</span>
           <div>
-            <p className="text-sm font-semibold text-slate-800">Confirmation Email</p>
+            <p className="text-sm font-semibold text-slate-800">Application review</p>
             <p className="text-xs text-slate-500">
-              Sent now — check your spam folder if you don't see it within 5 minutes
+              Keep your reference ID. Our team will review the submitted business information.
             </p>
           </div>
         </div>
         <div className="flex items-start gap-3 p-3 bg-white border border-slate-100 rounded-xl">
           <span className="text-lg">✅</span>
           <div>
-            <p className="text-sm font-semibold text-slate-800">Approval Email</p>
+            <p className="text-sm font-semibold text-slate-800">Decision notification</p>
             <p className="text-xs text-slate-500">
-              Contains your login credentials and instructions to access your wholesale dashboard
+              We will contact you using the details above after the review is complete.
             </p>
           </div>
         </div>
         <div className="flex items-start gap-3 p-3 bg-white border border-slate-100 rounded-xl">
           <span className="text-lg">❌</span>
           <div>
-            <p className="text-sm font-semibold text-slate-800">Rejection Email (if applicable)</p>
+            <p className="text-sm font-semibold text-slate-800">Review outcome</p>
             <p className="text-xs text-slate-500">
-              Will include the specific reason and steps to re-apply or appeal the decision
+              Contact is handled manually until transactional notifications are configured.
             </p>
           </div>
         </div>
@@ -988,6 +1031,7 @@ export default function WholesalePage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [applicationId, setApplicationId] = useState("");
   const [businessData, setBusinessData] = useState<Partial<BusinessDetailsData>>({});
   const [shopData, setShopData] = useState<Partial<ShopDetailsData>>({});
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
@@ -1009,11 +1053,31 @@ export default function WholesalePage() {
 
   const handleSubmit = async () => {
     setLoading(true);
-    // simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1800));
-    setLoading(false);
-    setDone(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const response = await applyWholesaleApi({
+        businessName: businessData.businessName,
+        ownerName: businessData.ownerName,
+        email: businessData.email,
+        password: businessData.password,
+        cellphone: businessData.cellphone,
+        businessType: businessData.businessType,
+        businessRegistration: businessData.businessRegistration,
+        monthlyOrderValue: businessData.monthlyOrderValue,
+        shopAddress: shopData.shopAddress,
+        shopCity: shopData.shopCity,
+        shopProvince: shopData.shopProvince,
+        shopPostalCode: shopData.shopPostalCode,
+        taxNumber: shopData.taxNumber,
+        notes: shopData.referral,
+      });
+      setApplicationId(response.data.application.id);
+      setDone(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not submit the application");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stepLabels = [
@@ -1100,7 +1164,7 @@ export default function WholesalePage() {
           <div className="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-600" />
           <div className="p-6 sm:p-8">
             {done ? (
-              <SuccessScreen name={businessData.ownerName ?? ""} email={businessData.email ?? ""} />
+              <SuccessScreen name={businessData.ownerName ?? ""} email={businessData.email ?? ""} applicationId={applicationId} />
             ) : step === 1 ? (
               <StepBusinessDetails onNext={handleStep1} savedData={businessData} />
             ) : step === 2 ? (

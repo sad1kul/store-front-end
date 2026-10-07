@@ -4,13 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
-import StatusBadge from "@/components/shared/StatusBadge";
 import { useAuthStore } from "@/lib/store/authStore";
 import { getUserByIdApi } from "@/lib/api/users";
 import { UserAccount } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import {
-  ChevronLeft, Mail, Calendar, Building2, BadgeCheck, Loader2,
+  ChevronLeft, Mail, Calendar, Building2, Loader2,
 } from "lucide-react";
 
 interface PageProps {

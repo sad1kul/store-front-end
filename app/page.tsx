@@ -32,7 +32,7 @@ export default function HomePage() {
           setFeaturedProducts(res.data.products);
         }
       })
-      .catch((err) => {
+      .catch(() => {
         toast.error("Failed to load featured products", {
           action: {
             label: "Retry",

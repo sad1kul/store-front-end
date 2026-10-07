@@ -7,7 +7,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 
 export default function CartItem({ item }: { item: ReturnType<typeof useCartStore.getState>["items"][0] }) {
-  const { updateQty, removeItem } = useCartStore();
+  const { updateQty, removeItem, serverValidatedCart } = useCartStore();
+  const liveItem = serverValidatedCart?.items.find((candidate) => candidate.productId === item.id);
+  const availableStock = liveItem?.availableStock;
 
   return (
     <motion.div
@@ -34,6 +36,11 @@ export default function CartItem({ item }: { item: ReturnType<typeof useCartStor
           </h3>
         </Link>
         <p className="text-xs text-slate-500 mt-0.5">SKU: {item.sku}</p>
+        {availableStock !== undefined && (
+          <p className={`text-xs mt-1 font-medium ${availableStock < item.qty ? "text-rose-600" : "text-emerald-600"}`}>
+            {availableStock === 0 ? "Out of stock" : `${availableStock} available now`}
+          </p>
+        )}
         {item.isBulkPriced && (
           <span className="inline-flex mt-1 items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
             Bulk Price Applied
@@ -54,7 +61,8 @@ export default function CartItem({ item }: { item: ReturnType<typeof useCartStor
             </span>
             <button
               onClick={() => updateQty(item.id, item.qty + 1)}
-              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white transition-colors text-slate-600"
+              disabled={availableStock !== undefined && item.qty >= availableStock}
+              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-slate-600"
             >
               <Plus size={13} />
             </button>

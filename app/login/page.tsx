@@ -28,7 +28,6 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setAuthError("");
-    await new Promise((r) => setTimeout(r, 400));
     const result = await login(data.email, data.password);
     setIsLoading(false);
     if (result.success) {
@@ -38,12 +37,6 @@ export default function LoginPage() {
     }
   };
 
-  const demoAccounts = [
-    { label: "Admin", email: "admin@smoketimestore.co.za", pass: "password123" },
-    { label: "Bulk Buyer", email: "sipho@smokeworld.co.za", pass: "password123" },
-    { label: "Retail", email: "thabo@example.co.za", pass: "password123" },
-  ];
-
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center px-4 py-12">
       <motion.div
@@ -51,7 +44,6 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Package size={22} className="text-white" />
@@ -61,26 +53,6 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-          {/* Demo Accounts */}
-          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6">
-            <p className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wider">Demo Accounts</p>
-            <div className="flex flex-wrap gap-2">
-              {demoAccounts.map((a) => (
-                <button
-                  key={a.label}
-                  type="button"
-                  onClick={async () => {
-                    await login(a.email, a.pass);
-                    router.push("/");
-                  }}
-                  className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>

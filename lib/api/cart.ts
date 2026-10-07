@@ -13,6 +13,14 @@ export interface ValidatedCartItem {
   lineTotal: number;
   isBulkPriced: boolean;
   bulkPricingTiers: BulkPricingTier[];
+  availableStock: number;
+}
+
+export interface StockIssue {
+  productId: string;
+  name: string;
+  requestedQty: number;
+  availableStock: number;
 }
 
 export interface ValidatedCart {
@@ -21,6 +29,7 @@ export interface ValidatedCart {
   vat: number;
   total: number;
   bulkSavings: number;
+  stockIssues: StockIssue[];
 }
 
 export interface ValidateCartResponse {

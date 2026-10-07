@@ -38,6 +38,10 @@ export async function getProductsApi(params?: {
   return apiClient<ProductsResponse>(`/products${qs ? `?${qs}` : ""}`);
 }
 
+export async function getAdminProductsApi(): Promise<ProductsResponse> {
+  return apiClient<ProductsResponse>("/products/admin/all");
+}
+
 export async function getProductBySlugApi(slug: string): Promise<SingleProductResponse> {
   return apiClient<SingleProductResponse>(`/products/${slug}`);
 }
@@ -60,4 +64,17 @@ export async function deleteProductApi(id: string): Promise<SingleProductRespons
   return apiClient<SingleProductResponse>(`/products/${id}`, {
     method: "DELETE",
   });
+}
+
+export async function uploadProductImageApi(file: File): Promise<{ success: boolean; data: { image: { id: string; url: string } } }> {
+  const formData = new FormData();
+  formData.append("image", file);
+  return apiClient<{ success: boolean; data: { image: { id: string; url: string } } }>("/images", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function deleteProductImageApi(id: string): Promise<{ success: boolean }> {
+  return apiClient<{ success: boolean }>(`/images/${id}`, { method: "DELETE" });
 }

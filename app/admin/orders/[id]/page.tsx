@@ -24,7 +24,7 @@ export default function OrderDetailPage({ params }: PageProps) {
   const { user } = useAuthStore();
   const [order, setOrder] = useState<Order | null>(null);
   const [status, setStatus] = useState<OrderStatus>("pending");
-  const [adminNotes, setAdminNotes] = useState("");
+  const [, setAdminNotes] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

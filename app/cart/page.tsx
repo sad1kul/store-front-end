@@ -3,14 +3,15 @@
 import { useEffect } from "react";
 import { useCartStore } from "@/lib/store/cartStore";
 import { useAuthStore } from "@/lib/store/authStore";
+import { usePolling } from "@/lib/hooks/usePolling";
 import CartItem from "@/components/cart/CartItem";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import Link from "next/link";
-import { ShoppingCart, ArrowRight, Tag, Package, Loader2 } from "lucide-react";
+import { ShoppingCart, ArrowRight, Tag, Package, Loader2, AlertCircle } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 export default function CartPage() {
-  const { items, serverValidatedCart, isValidating, validateWithServer, clearCart } = useCartStore();
+  const { items, serverValidatedCart, isValidating, validationError, validateWithServer, clearCart } = useCartStore();
   const { user } = useAuthStore();
   const isBulkApproved = user?.role === "bulk_buyer" && user.bulkStatus === "approved";
 
@@ -19,6 +20,11 @@ export default function CartPage() {
       validateWithServer();
     }
   }, [items, validateWithServer]);
+
+  usePolling(() => void validateWithServer(), {
+    intervalMs: 15_000,
+    enabled: items.length > 0,
+  });
 
   if (items.length === 0) {
     return (
@@ -56,6 +62,12 @@ export default function CartPage() {
         {/* Cart Items */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            {validationError && (
+              <div className="mb-4 flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">
+                <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                <p>{validationError} Stock is checked automatically every 10 seconds.</p>
+              </div>
+            )}
             <AnimatePresence>
               {items.map((item) => (
                 <CartItem key={item.id} item={item} />
@@ -121,12 +133,18 @@ export default function CartPage() {
                   <p className="text-xs text-slate-400 mt-1">Incl. VAT (Server Validated)</p>
                 </div>
 
-                <Link
-                  href="/checkout"
-                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 rounded-xl transition-colors"
-                >
-                  Proceed to Checkout <ArrowRight size={16} />
-                </Link>
+                {validationError ? (
+                  <button disabled className="w-full flex items-center justify-center gap-2 bg-slate-300 text-white font-semibold py-3.5 rounded-xl cursor-not-allowed">
+                    Resolve stock issue to continue
+                  </button>
+                ) : (
+                  <Link
+                    href="/checkout"
+                    className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 rounded-xl transition-colors"
+                  >
+                    Proceed to Checkout <ArrowRight size={16} />
+                  </Link>
+                )}
               </>
             )}
 

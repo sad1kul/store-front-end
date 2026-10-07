@@ -1,7 +1,5 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -12,6 +10,11 @@
 
 # testing
 /coverage
+.nyc_output/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.auth/
 
 # next.js
 /.next/
@@ -19,19 +22,36 @@
 
 # production
 /build
+/dist/
+.cache/
+.turbo/
 
 # misc
 .DS_Store
+._*
+Thumbs.db
+Desktop.ini
 *.pem
+*.key
+*.p12
+*.pfx
+cookies.txt
 
 # debug
+*.log
+*.log.*
+/logs/
+*.pid
+*.pid.lock
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# local environment files; commit placeholder examples only
 .env*
+!.env.example
+!.env.*.example
 
 # vercel
 .vercel
@@ -39,3 +59,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local backups and temporary files
+/backups/
+/dumps/
+/tmp/
+/temp/
+
+# editor artifacts; shared editor configuration remains eligible for commits
+.idea/
+.vscode/*.local.json
+*.swp
+*.swo
+*~
+
+# Local review reports
+/IMPLEMENTATION_SUMMARY.md
+/CODE_CLEANUP_REVIEW.md

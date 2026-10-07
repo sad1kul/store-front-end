@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z.string().min(1, "Enter your password"),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
@@ -14,7 +14,8 @@ export const registerSchema = z
       .min(2, "Name must be at least 2 characters")
       .max(100, "Name is too long"),
     email: z.string().email("Please enter a valid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: z.string().min(12, "Password must be at least 12 characters")
+      .refine((value) => new TextEncoder().encode(value).length <= 72, "Password must be at most 72 UTF-8 bytes"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {

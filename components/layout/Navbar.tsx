@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useCartStore } from "@/lib/store/cartStore";
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchCommand from "@/components/layout/SearchCommand";
 import { useWishlistStore } from "@/lib/store/wishlistStore";
+import { toast } from "sonner";
 
 const navLinks = [
   { href: "/products", label: "Products" },
@@ -17,7 +19,7 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, isAuthenticated, logout, initAuth } = useAuthStore();
+  const { user, isAuthenticated, logout, initAuth, sessionError } = useAuthStore();
   const getItemCount = useCartStore((s) => s.getItemCount);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -25,13 +27,19 @@ export default function Navbar() {
   const wishlistCount = useWishlistStore((s) => s.ids.length);
 
   useEffect(() => {
-    initAuth();
+    try { localStorage.removeItem("smoke-time-auth"); } catch { /* Storage may be disabled. */ }
+    void initAuth().catch(() => undefined);
   }, [initAuth]);
+
+  const signOut = () => {
+    void logout().catch(() => toast.error("The server session could not be revoked. Please retry signing out."));
+    setDropdownOpen(false);
+    setMenuOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center group-hover:bg-indigo-700 transition-colors">
             <Package size={16} className="text-white" />
@@ -41,7 +49,6 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-6">
           {navLinks.map((link) => (
             <Link
@@ -67,10 +74,8 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Right Side */}
         <div className="flex items-center gap-2">
           <SearchCommand />
-          {/* Wishlist */}
           <Link href="/wishlist" className="relative p-2 text-slate-600 hover:text-rose-500 transition-colors">
             <Heart size={20} />
             {wishlistCount > 0 && (
@@ -79,7 +84,6 @@ export default function Navbar() {
               </span>
             )}
           </Link>
-          {/* Cart */}
           <Link href="/cart" className="relative p-2 text-slate-600 hover:text-indigo-600 transition-colors">
             <ShoppingCart size={20} />
             {itemCount > 0 && (
@@ -93,15 +97,23 @@ export default function Navbar() {
             )}
           </Link>
 
-          {/* Auth */}
           {isAuthenticated && user ? (
             <div className="relative hidden md:block">
               <button
                 onClick={() => setDropdownOpen((o) => !o)}
                 className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
               >
-                <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full object-cover" />
-                <span className="text-sm font-medium text-slate-700 max-w-[100px] truncate">{user.name.split(" ")[0]}</span>
+                {user.avatar ? (
+                  <Image src={user.avatar} alt={user.name} width={28} height={28} unoptimized className="w-7 h-7 rounded-full object-cover" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+                    {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                )}
+                <span className="text-sm font-medium text-slate-700 max-w-[120px] truncate">{user.name.split(" ")[0]}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  {user.role === "bulk_buyer" ? "Bulk Buyer" : user.role === "admin" ? "Admin" : "Retail"}
+                </span>
                 <ChevronDown size={14} className={cn("text-slate-500 transition-transform", dropdownOpen && "rotate-180")} />
               </button>
               <AnimatePresence>
@@ -122,6 +134,9 @@ export default function Navbar() {
                       </span>
                     </div>
                     <div className="py-1">
+                      <Link href="/account/security" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" onClick={() => setDropdownOpen(false)}>
+                        <User size={14} /> Account security
+                      </Link>
                       {user.role === "bulk_buyer" && user.bulkStatus === "approved" && (
                         <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" onClick={() => setDropdownOpen(false)}>
                           <User size={14} /> Dashboard
@@ -132,7 +147,7 @@ export default function Navbar() {
                           <User size={14} /> Admin Panel
                         </Link>
                       )}
-                      <button onClick={() => { logout(); setDropdownOpen(false); }} className="flex w-full items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                      <button onClick={signOut} className="flex w-full items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50">
                         <LogOut size={14} /> Logout
                       </button>
                     </div>
@@ -147,14 +162,17 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* Mobile Menu Toggle */}
           <button className="md:hidden p-2 text-slate-600" onClick={() => setMenuOpen((o) => !o)}>
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </nav>
+      {sessionError && <div role="alert" className="flex flex-wrap items-center justify-center gap-3 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+        <span>{sessionError}</span>
+        <button className="underline" onClick={() => void initAuth().catch(() => undefined)}>Retry connection</button>
+        <button className="underline" onClick={signOut}>Retry sign out</button>
+      </div>}
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -177,10 +195,28 @@ export default function Navbar() {
                 <Link href="/admin" className="block py-2 text-sm font-medium text-slate-700 hover:text-indigo-600" onClick={() => setMenuOpen(false)}>Admin</Link>
               )}
               <div className="pt-2 border-t border-slate-100">
-                {isAuthenticated ? (
-                  <button onClick={() => { logout(); setMenuOpen(false); }} className="flex items-center gap-2 py-2 text-sm font-medium text-rose-600">
-                    <LogOut size={14} /> Logout
-                  </button>
+                {isAuthenticated && user ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between py-1">
+                      <div className="flex items-center gap-2">
+                        {user.avatar ? (
+                          <Image src={user.avatar} alt={user.name} width={24} height={24} unoptimized className="w-6 h-6 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+                            {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                          </div>
+                        )}
+                        <span className="text-sm font-semibold text-slate-800">{user.name}</span>
+                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-100 text-indigo-700">
+                        {user.role === "bulk_buyer" ? "Bulk Buyer" : user.role === "admin" ? "Admin" : "Retail"}
+                      </span>
+                    </div>
+                    <Link href="/account/security" className="block py-2 text-sm text-indigo-600" onClick={() => setMenuOpen(false)}>Account security</Link>
+                    <button onClick={signOut} className="flex items-center gap-2 py-2 text-sm font-medium text-rose-600">
+                      <LogOut size={14} /> Logout
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex gap-3">
                     <Link href="/login" className="text-sm font-medium text-slate-600" onClick={() => setMenuOpen(false)}>Login</Link>

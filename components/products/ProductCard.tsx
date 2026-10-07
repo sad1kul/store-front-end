@@ -91,9 +91,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               Bulk Price
             </span>
           )}
-          {product.stock < 10 && product.stock > 0 && (
-            <span className="absolute bottom-2 left-2 bg-amber-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-              Low Stock
+          {product.stock > 0 && (
+            <span className={`absolute bottom-2 left-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full ${product.stock < 10 ? "bg-amber-500" : "bg-emerald-600"}`}>
+              {product.stock} in stock
             </span>
           )}
           {product.stock === 0 && (

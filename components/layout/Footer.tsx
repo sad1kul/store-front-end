@@ -32,7 +32,6 @@ export default function Footer() {
     <footer className="bg-slate-900 text-slate-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
-          {/* Brand */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
@@ -47,7 +46,6 @@ export default function Footer() {
               cigars, and vaping supplies. B2C retail &amp; B2B wholesale available.
             </p>
 
-            {/* Contact */}
             <div className="space-y-2 text-sm">
               <div className="flex items-start gap-2 text-slate-400">
                 <MapPin size={15} className="mt-0.5 shrink-0 text-indigo-400" />
@@ -63,7 +61,6 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* Socials */}
             <div className="flex gap-3 mt-6">
               {[
                 { Icon: Globe, href: "#" },
@@ -81,7 +78,6 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Link columns */}
           {Object.entries(footerLinks).map(([title, links]) => (
             <div key={title}>
               <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
@@ -103,7 +99,6 @@ export default function Footer() {
           ))}
         </div>
 
-        {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-slate-500">
             © {new Date().getFullYear()} Smoke Time Store. All rights reserved. For adults 18+ only.

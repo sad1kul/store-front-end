@@ -9,6 +9,7 @@ import { Search, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { usePolling } from "@/lib/hooks/usePolling";
 
 const categories = [
   "All",
@@ -45,8 +46,8 @@ function ProductListingContent() {
   const [isLoading, setIsLoading] = useState(true);
   const ITEMS_PER_PAGE = 9;
 
-  const loadProducts = useCallback(async () => {
-    setIsLoading(true);
+  const loadProducts = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const res = await getProductsApi({
         category: selectedCategory !== "All" ? selectedCategory : undefined,
@@ -76,13 +77,15 @@ function ProductListingContent() {
         },
       });
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [selectedCategory, search, sort, page, priceRange, inStockOnly]);
 
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  usePolling(() => void loadProducts(true), { intervalMs: 20_000 });
 
   const hasMore = products.length < totalProducts;
 

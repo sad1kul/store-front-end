@@ -2,61 +2,138 @@
 
 import { useAuthStore, UserRole } from "@/lib/store/authStore";
 import { useState } from "react";
-import { ChevronUp, Settings } from "lucide-react";
+import { ChevronUp, User, ShieldCheck, Package, ShoppingCart, LogOut, ArrowRight, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 
-const roles: { value: UserRole; label: string; color: string; emoji: string }[] = [
-  { value: "guest", label: "Guest", color: "bg-slate-500", emoji: "👤" },
-  { value: "retail", label: "Retail User", color: "bg-emerald-500", emoji: "🛒" },
-  { value: "bulk_buyer", label: "Bulk Buyer", color: "bg-violet-500", emoji: "📦" },
-  { value: "admin", label: "Admin", color: "bg-indigo-500", emoji: "⚙️" },
-];
+const roleDisplayMap: Record<UserRole, { label: string; bg: string; badgeBg: string; icon: LucideIcon }> = {
+  guest: {
+    label: "Guest",
+    bg: "bg-slate-800",
+    badgeBg: "bg-slate-700 text-slate-300",
+    icon: User,
+  },
+  retail: {
+    label: "Retail User",
+    bg: "bg-emerald-600",
+    badgeBg: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+    icon: ShoppingCart,
+  },
+  bulk_buyer: {
+    label: "Bulk Buyer",
+    bg: "bg-violet-600",
+    badgeBg: "bg-violet-500/20 text-violet-300 border border-violet-500/30",
+    icon: Package,
+  },
+  admin: {
+    label: "Admin",
+    bg: "bg-indigo-600",
+    badgeBg: "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30",
+    icon: ShieldCheck,
+  },
+};
 
 export default function RoleSwitcher() {
   const [open, setOpen] = useState(false);
-  const { user, switchRole } = useAuthStore();
-  const currentRole = user?.role ?? "guest";
-  const current = roles.find((r) => r.value === currentRole) ?? roles[0];
+  const { user, isAuthenticated, logout } = useAuthStore();
+  const currentRole: UserRole = user?.role ?? "guest";
+  const roleInfo = roleDisplayMap[currentRole] ?? roleDisplayMap.guest;
+  const RoleIcon = roleInfo.icon;
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-2">
       {open && (
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-4 w-56 mb-2">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
-            DevTools — Role
-          </p>
-          <div className="flex flex-col gap-2">
-            {roles.map((role) => (
-              <button
-                key={role.value}
-                onClick={() => { switchRole(role.value); setOpen(false); }}
-                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all
-                  ${currentRole === role.value
-                    ? `${role.color} text-white shadow-lg scale-[1.02]`
-                    : "text-slate-300 hover:bg-slate-800"
-                  }`}
-              >
-                <span className="text-base">{role.emoji}</span>
-                <span>{role.label}</span>
-                {currentRole === role.value && (
-                  <span className="ml-auto text-xs opacity-80">Active</span>
-                )}
-              </button>
-            ))}
+        <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-4 w-64 mb-2 text-slate-200">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Current Session
+            </span>
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${roleInfo.badgeBg}`}>
+              {roleInfo.label}
+            </span>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-700">
-            <p className="text-xs text-slate-500 text-center">
-              Development only • Not in production
-            </p>
+
+          <div className="py-3 flex items-start gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${roleInfo.bg} text-white shadow-md`}>
+              <RoleIcon size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white truncate">
+                {isAuthenticated && user ? user.name : "Guest User"}
+              </p>
+              <p className="text-xs text-slate-400 truncate">
+                {isAuthenticated && user ? user.email : "Not signed in"}
+              </p>
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className="text-xs text-slate-400">Role:</span>
+                <span className="text-xs font-semibold text-white">{roleInfo.label}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
+            {isAuthenticated && user ? (
+              <>
+                {user.role === "admin" && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-200 bg-slate-800/80 hover:bg-slate-800 transition-colors"
+                  >
+                    <span>Admin Panel</span>
+                    <ArrowRight size={13} className="text-slate-400" />
+                  </Link>
+                )}
+                {user.role === "bulk_buyer" && user.bulkStatus === "approved" && (
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-200 bg-slate-800/80 hover:bg-slate-800 transition-colors"
+                  >
+                    <span>Wholesale Dashboard</span>
+                    <ArrowRight size={13} className="text-slate-400" />
+                  </Link>
+                )}
+                <button
+                  onClick={async () => {
+                    await logout().catch(() => undefined);
+                    setOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 border border-rose-900/40 transition-colors"
+                >
+                  <LogOut size={13} />
+                  <span>Sign Out</span>
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-md"
+              >
+                <span>Sign In</span>
+                <ArrowRight size={13} />
+              </Link>
+            )}
           </div>
         </div>
       )}
+
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl text-white text-sm font-semibold transition-all hover:scale-105 active:scale-95 ${current.color}`}
-        title="DevTools: Switch Role"
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-xl text-white text-sm font-medium transition-all hover:scale-105 active:scale-95 ${roleInfo.bg}`}
+        title={isAuthenticated && user ? `Logged in as ${user.name} (${roleInfo.label})` : "Guest"}
       >
-        <Settings size={15} className={`transition-transform duration-300 ${open ? "rotate-45" : ""}`} />
-        <span>{current.emoji} {current.label}</span>
+        <RoleIcon size={16} />
+        <span className="font-semibold">
+          {isAuthenticated && user ? (
+            <>
+              <span className="max-w-[110px] truncate inline-block align-bottom">{user.name.split(" ")[0]}</span>
+              <span className="opacity-80 font-normal ml-1">({roleInfo.label})</span>
+            </>
+          ) : (
+            "Guest"
+          )}
+        </span>
         <ChevronUp size={14} className={`transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
     </div>

@@ -5,11 +5,12 @@ import AdminGuard from "@/components/layout/AdminGuard";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { useAuthStore } from "@/lib/store/authStore";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
-import { getProductsApi, createProductApi, updateProductApi, deleteProductApi } from "@/lib/api/products";
+import { getAdminProductsApi, deleteProductApi } from "@/lib/api/products";
 import { Product } from "@/lib/types";
-import { Plus, Pencil, Trash2, Search, X, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2, Package } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import ProductModal from "@/components/admin/ProductModal";
 
 export default function AdminProductsPage() {
   const { user } = useAuthStore();
@@ -23,7 +24,7 @@ export default function AdminProductsPage() {
   const loadProducts = async () => {
     setIsLoading(true);
     try {
-      const res = await getProductsApi();
+      const res = await getAdminProductsApi();
       if (res.success && res.data) {
         setProducts(res.data.products);
       }
@@ -117,42 +118,74 @@ export default function AdminProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map((product) => (
-                    <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-3">
-                        <div className="flex items-center gap-3">
-                          <img src={product.images[0] || ""} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
-                          <p className="text-sm font-medium text-slate-900 line-clamp-1">{product.name}</p>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-16 text-slate-400">
+                        <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                          <Package size={24} className="text-slate-400" />
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-mono text-slate-500 hidden sm:table-cell">{product.sku}</td>
-                      <td className="px-4 py-3 hidden lg:table-cell">
-                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{product.category}</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-right text-slate-900">{formatCurrency(product.retailPrice)}</td>
-                      <td className="px-4 py-3 text-right hidden md:table-cell">
-                        <span className={`text-sm font-medium ${product.stock < 20 ? "text-amber-600" : "text-emerald-600"}`}>
-                          {product.stock}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 justify-end">
-                          <button
-                            onClick={() => { setEditProduct(product); setModal("edit"); }}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(product.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                        <p className="text-base font-semibold text-slate-700">No products found</p>
+                        <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                          {search ? "No products match your search query." : "Your catalog is currently empty. Get started by adding your first product."}
+                        </p>
+                        <button
+                          onClick={() => { setEditProduct(null); setModal("add"); }}
+                          className="mt-4 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm"
+                        >
+                          <Plus size={14} /> Add First Product
+                        </button>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filtered.map((product) => (
+                      <tr key={product.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-3">
+                            {product.images && product.images[0] ? (
+                              <img
+                                src={product.images[0]}
+                                alt={product.name}
+                                className="w-10 h-10 rounded-lg object-cover bg-slate-100 border border-slate-200"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
+                                <Package size={18} />
+                              </div>
+                            )}
+                            <p className="text-sm font-medium text-slate-900 line-clamp-1">{product.name}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-500 hidden sm:table-cell">{product.sku}</td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{product.category}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-semibold text-right text-slate-900">{formatCurrency(product.retailPrice)}</td>
+                        <td className="px-4 py-3 text-right hidden md:table-cell">
+                          <span className={`text-sm font-medium ${product.stock < 20 ? "text-amber-600" : "text-emerald-600"}`}>
+                            {product.stock}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 justify-end">
+                            <button
+                              onClick={() => { setEditProduct(product); setModal("edit"); }}
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
+                              title="Edit product"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteId(product.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50"
+                              title="Delete product"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -187,6 +220,17 @@ export default function AdminProductsPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Add / Edit Product Modal */}
+        <ProductModal
+          isOpen={modal !== null}
+          onClose={() => {
+            setModal(null);
+            setEditProduct(null);
+          }}
+          onSuccess={() => loadProducts()}
+          productToEdit={modal === "edit" ? editProduct : null}
+        />
       </main>
     </div>
   );

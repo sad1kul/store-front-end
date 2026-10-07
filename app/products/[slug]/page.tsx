@@ -1,6 +1,5 @@
 "use client";
 
-import { notFound } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -18,6 +17,7 @@ import ReviewForm from "@/components/products/ReviewForm";
 import Link from "next/link";
 import { toast } from "sonner";
 import { addRecentlyViewed } from "@/lib/utils/recentlyViewed";
+import { usePolling } from "@/lib/hooks/usePolling";
 
 interface PageProps {
   params: { slug: string };
@@ -48,7 +48,7 @@ export default function ProductDetailPage({ params }: PageProps) {
           setNotFoundState(true);
         }
       })
-      .catch((err) => {
+      .catch(() => {
         toast.error("Failed to load product details", {
           action: {
             label: "Retry",
@@ -61,6 +61,15 @@ export default function ProductDetailPage({ params }: PageProps) {
         setIsLoading(false);
       });
   }, [params.slug]);
+
+  usePolling(() => {
+    void getProductBySlugApi(params.slug).then((res) => {
+      if (res.success && res.data?.product) {
+        setProduct(res.data.product);
+        setQty((current) => Math.max(1, Math.min(current, res.data.product.stock || 1)));
+      }
+    }).catch(() => undefined);
+  }, { intervalMs: 20_000 });
 
   if (isLoading) {
     return (
@@ -226,7 +235,7 @@ export default function ProductDetailPage({ params }: PageProps) {
               <>
                 <CheckCircle2 size={16} className="text-emerald-600" />
                 <span className="text-sm text-emerald-700 font-medium">
-                  {product.stock < 20 ? `Only ${product.stock} left in stock!` : "In Stock"}
+                  {product.stock < 20 ? `Only ${product.stock} left in stock!` : `${product.stock} in stock`}
                 </span>
               </>
             ) : (

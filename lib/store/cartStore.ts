@@ -56,12 +56,10 @@ export const useCartStore = create<CartState>()(
             items: items.map((i) =>
               i.id === newItem.id ? { ...i, qty: updatedQty } : i
             ),
-            serverValidatedCart: null, // Reset validation when cart changes
           });
         } else {
           set({
             items: [...items, { ...newItem, qty: newItem.qty ?? 1 }],
-            serverValidatedCart: null,
           });
         }
       },
@@ -69,7 +67,6 @@ export const useCartStore = create<CartState>()(
       removeItem: (id) =>
         set({
           items: get().items.filter((i) => i.id !== id),
-          serverValidatedCart: null,
         }),
 
       updateQty: (id, qty) => {
@@ -81,7 +78,6 @@ export const useCartStore = create<CartState>()(
           items: get().items.map((item) =>
             item.id === id ? { ...item, qty } : item
           ),
-          serverValidatedCart: null,
         });
       },
 
@@ -104,7 +100,18 @@ export const useCartStore = create<CartState>()(
           const res = await validateCartApi(payload);
 
           if (res.success && res.data) {
-            set({ serverValidatedCart: res.data, isValidating: false });
+            const stockMessage = res.data.stockIssues.length > 0
+              ? res.data.stockIssues.map((issue) =>
+                  issue.availableStock === 0
+                    ? `${issue.name} is out of stock.`
+                    : `${issue.name}: only ${issue.availableStock} available (you requested ${issue.requestedQty}).`
+                ).join(" ")
+              : null;
+            set({
+              serverValidatedCart: res.data,
+              validationError: stockMessage,
+              isValidating: false,
+            });
             return res.data;
           } else {
             set({ validationError: "Failed to validate cart", isValidating: false });

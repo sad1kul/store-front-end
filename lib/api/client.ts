@@ -1,52 +1,32 @@
 import { useAuthStore } from "@/lib/store/authStore";
+import { ApiError, request } from "./transport";
 
-const BASE_URL = "/api";
+export { ApiError } from "./transport";
 
 interface FetchOptions extends RequestInit {
   retryOn401?: boolean;
 }
 
 export async function apiClient<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
-  const { retryOn401 = true, headers: customHeaders, ...restOptions } = options;
-
-  const accessToken = useAuthStore.getState().accessToken;
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(customHeaders as Record<string, string>),
-  };
-
-  if (accessToken) {
-    headers["Authorization"] = `Bearer ${accessToken}`;
-  }
-
-  const url = endpoint.startsWith("/") ? `${BASE_URL}${endpoint}` : `${BASE_URL}/${endpoint}`;
-
-  const response = await fetch(url, {
-    ...restOptions,
-    headers,
-    credentials: "include",
-  });
-
-  if (response.status === 401 && retryOn401 && !endpoint.includes("/auth/login") && !endpoint.includes("/auth/refresh")) {
+  const { retryOn401 = true, ...requestOptions } = options;
+  const initial = useAuthStore.getState();
+  try {
+    return await request<T>(endpoint, requestOptions, initial.accessToken);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401 || !retryOn401) throw error;
+    const current = useAuthStore.getState();
+    if (current.sessionEpoch !== initial.sessionEpoch || options.signal?.aborted) throw error;
+    const token = current.accessToken && current.accessToken !== initial.accessToken
+      ? current.accessToken : await current.initAuth();
+    if (!token || useAuthStore.getState().sessionEpoch !== initial.sessionEpoch) throw error;
     try {
-      const refreshedToken = await useAuthStore.getState().initAuth();
-      if (refreshedToken) {
-        return apiClient<T>(endpoint, { ...options, retryOn401: false });
-      } else {
-        useAuthStore.getState().logout();
+      return await request<T>(endpoint, requestOptions, token);
+    } catch (retryError) {
+      if (retryError instanceof ApiError && retryError.status === 401
+        && useAuthStore.getState().sessionEpoch === initial.sessionEpoch) {
+        useAuthStore.getState().invalidateSession();
       }
-    } catch {
-      useAuthStore.getState().logout();
+      throw retryError;
     }
   }
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const errorMsg = data.message || `Request failed with status ${response.status}`;
-    throw new Error(errorMsg);
-  }
-
-  return data;
 }

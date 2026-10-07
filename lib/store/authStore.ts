@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { loginApi, refreshApi, logoutApi, meApi } from "@/lib/api/auth";
+import { loginApi, refreshApi, logoutApi } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/transport";
 
 export type UserRole = "guest" | "retail" | "bulk_buyer" | "admin";
 export type BulkStatus = "approved" | "pending" | "rejected" | null;
@@ -23,105 +23,98 @@ interface AuthState {
   accessToken: string | null;
   isAuthenticated: boolean;
   isInitializing: boolean;
+  sessionEpoch: number;
+  sessionError: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   initAuth: () => Promise<string | null>;
-  switchRole: (role: UserRole) => void;
+  invalidateSession: () => void;
 }
 
-const rolePresets: Record<UserRole, AuthUser | null> = {
-  guest: null,
-  retail: {
-    id: "u2",
-    name: "Thabo Nkosi",
-    email: "thabo@example.co.za",
-    role: "retail",
-    avatar: "https://placehold.co/100x100/10B981/FFFFFF?text=TN",
-  },
-  bulk_buyer: {
-    id: "u4",
-    name: "Sipho Dlamini",
-    email: "sipho@smokeworld.co.za",
-    role: "bulk_buyer",
-    bulkStatus: "approved",
-    businessName: "Smoke World Distributors",
-    avatar: "https://placehold.co/100x100/7C3AED/FFFFFF?text=SD",
-    totalOrders: 47,
-    totalSpent: 186450.00,
-    bulkSavings: 32780.00,
-  },
-  admin: {
-    id: "u1",
-    name: "Admin User",
-    email: "admin@smoketimestore.co.za",
-    role: "admin",
-    avatar: "https://placehold.co/100x100/4F46E5/FFFFFF?text=AU",
-  },
-};
+const signedOut = { user: null, accessToken: null, isAuthenticated: false, isInitializing: false };
+const errorMessage = (error: unknown) => error instanceof Error ? error.message : "Unable to complete this request.";
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      accessToken: null,
-      isAuthenticated: false,
-      isInitializing: true,
+export function createAuthStore(api = { login: loginApi, refresh: refreshApi, logout: logoutApi }) {
+  let refreshFlight: { epoch: number; promise: Promise<string | null> } | undefined;
+  let refreshBlocked = false;
+  let mutations: Promise<unknown> = Promise.resolve();
 
-      login: async (email, password) => {
-        try {
-          const res = await loginApi(email, password);
-          if (res.success && res.data) {
-            set({
-              user: res.data.user,
-              accessToken: res.data.accessToken,
-              isAuthenticated: true,
-            });
-            return { success: true };
-          }
-          return { success: false, error: "Invalid email or password." };
-        } catch (err: any) {
-          return { success: false, error: err.message || "Invalid email or password." };
+  // Serialize cookie-writing operations, including login followed immediately by logout.
+  function mutate<T>(operation: () => Promise<T>): Promise<T> {
+    const result = mutations.then(operation, operation);
+    mutations = result.catch(() => undefined);
+    return result;
+  }
+
+  return create<AuthState>()((set, get) => ({
+    ...signedOut,
+    isInitializing: true,
+    sessionEpoch: 0,
+    sessionError: null,
+
+    invalidateSession: () => {
+      refreshBlocked = true;
+      set({ ...signedOut, sessionEpoch: get().sessionEpoch + 1, sessionError: null });
+    },
+
+    login: async (email, password) => {
+      const epoch = get().sessionEpoch + 1;
+      refreshBlocked = true;
+      set({ ...signedOut, sessionEpoch: epoch, sessionError: null });
+      try {
+        const response = await mutate(() => api.login(email, password));
+        if (get().sessionEpoch !== epoch) return { success: false, error: "Sign-in was cancelled." };
+        if (!response.success) return { success: false, error: "Invalid email or password." };
+        refreshBlocked = false;
+        set({ user: response.data.user, accessToken: response.data.accessToken, isAuthenticated: true });
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: errorMessage(error) };
+      }
+    },
+
+    logout: async () => {
+      get().invalidateSession();
+      const epoch = get().sessionEpoch;
+      try {
+        await mutate(() => api.logout());
+      } catch (error) {
+        if (get().sessionEpoch === epoch) {
+          set({ sessionError: "Signed out on this page, but the server session could not be revoked. Retry signing out." });
         }
-      },
+        throw error;
+      }
+    },
 
-      logout: async () => {
+    initAuth: () => {
+      if (refreshBlocked) return Promise.resolve(null);
+      const epoch = get().sessionEpoch;
+      if (refreshFlight?.epoch === epoch) return refreshFlight.promise;
+      const promise = (async () => {
         try {
-          await logoutApi();
-        } catch {
-          // ignore logout errors
+          const response = await api.refresh();
+          if (get().sessionEpoch !== epoch) return null;
+          if (!response.success) throw new ApiError("Please sign in again.", 401);
+          set({ user: response.data.user, accessToken: response.data.accessToken,
+            isAuthenticated: true, isInitializing: false, sessionError: null });
+          return response.data.accessToken;
+        } catch (error) {
+          if (get().sessionEpoch !== epoch) return null;
+          if (error instanceof ApiError && error.status === 401) {
+            get().invalidateSession();
+            return null;
+          }
+          set({ isInitializing: false, sessionError: errorMessage(error) });
+          throw error;
         } finally {
-          set({ user: null, accessToken: null, isAuthenticated: false });
+          if (refreshFlight?.epoch === epoch) refreshFlight = undefined;
         }
-      },
+      })();
+      refreshFlight = { epoch, promise };
+      return promise;
+    },
+  }));
+}
 
-      initAuth: async () => {
-        try {
-          const res = await refreshApi();
-          if (res.success && res.data) {
-            set({
-              user: res.data.user,
-              accessToken: res.data.accessToken,
-              isAuthenticated: true,
-              isInitializing: false,
-            });
-            return res.data.accessToken;
-          }
-        } catch {
-          // Silent refresh failed — guest user
-        }
-        set({ user: null, accessToken: null, isAuthenticated: false, isInitializing: false });
-        return null;
-      },
-
-      switchRole: (role) => {
-        const preset = rolePresets[role];
-        set({ user: preset, isAuthenticated: preset !== null });
-      },
-    }),
-    {
-      name: "smoke-time-auth",
-      // Exclude accessToken from localStorage — lives in memory only
-      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
-    }
-  )
-);
+// Account details and bearer tokens stay in memory; the HttpOnly cookie restores sessions.
+export const useAuthStore = createAuthStore();

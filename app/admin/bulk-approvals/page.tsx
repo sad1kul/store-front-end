@@ -10,7 +10,7 @@ import { WholesaleApplication, ApplicationStatus } from "@/lib/types";
 import {
   CheckCircle, XCircle, Eye, X, Building2, Calendar,
   Mail, FileText, MapPin, Camera, AlertCircle,
-  Send, Bell, Clock, UserCheck, BadgeX,
+  Send, Bell, UserCheck, BadgeX,
   Smartphone, Info, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,7 +25,6 @@ function EmailPreviewModal({
   onClose: () => void;
 }) {
   const isApproval = type === "approval";
-  const tempPassword = `STS${Math.random().toString(36).slice(2, 8).toUpperCase()}#`;
 
   return (
     <motion.div
@@ -69,21 +68,15 @@ function EmailPreviewModal({
               {isApproval ? (
                 <>
                   <p>We are thrilled to inform you that your wholesale account application for <strong>{app.businessName}</strong> has been <span className="text-emerald-600 font-bold">approved</span>!</p>
-                  <p>You now have access to Smoke Time Store's exclusive bulk pricing tiers. Here are your login credentials:</p>
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 my-3">
-                    <p className="text-sm font-semibold text-emerald-800 mb-2">🔐 Your Login Credentials</p>
-                    <p><strong>Username / Email:</strong> {app.email}</p>
-                    <p><strong>Temporary Password:</strong> <code className="bg-emerald-100 px-2 py-0.5 rounded text-emerald-800">{tempPassword}</code></p>
-                    <p className="text-xs text-emerald-600 mt-2">⚠️ Please change your password on first login for security.</p>
-                  </div>
+                  <p>Account access is provisioned separately by the store. This preview does not create credentials or send an email.</p>
                   <p>To get started:</p>
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>Visit <strong>smoketimestore.co.za/login</strong></li>
-                    <li>Enter your email and temporary password</li>
-                    <li>Set a new password when prompted</li>
+                    <li>Wait for the store to confirm that account access has been provisioned</li>
+                    <li>Never use credentials displayed only in a preview</li>
                     <li>Browse our product catalogue with your wholesale pricing</li>
                   </ol>
-                  <p className="text-sm text-slate-500">Your account has been assigned a <strong>Bulk Buyer</strong> role with immediate access to all pricing tiers.</p>
+                  <p className="text-sm text-slate-500">Approval alone does not guarantee that a matching user account exists.</p>
                 </>
               ) : (
                 <>
@@ -101,14 +94,14 @@ function EmailPreviewModal({
               )}
 
               <p className="text-slate-500 text-xs border-t border-slate-200 pt-3 mt-4">
-                This is an automated notification from Smoke Time Store. Please do not reply directly to this email.
+                Draft text only. No automated notification is sent by the current application.
               </p>
             </div>
           </div>
 
           <div className="mt-4 flex items-center gap-2 text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             <Info size={12} className="text-amber-500 shrink-0" />
-            This is a preview of the email that would be sent. In production, this would be delivered via your email service provider.
+            Preview only. Configure and verify a transactional email provider before promising delivery.
           </div>
         </div>
 
@@ -567,7 +560,7 @@ export default function BulkApprovalsPage() {
         setApplications((apps) =>
           apps.map((a) => a.id === id ? res.data.application : a)
         );
-        toast.success("✅ Application approved! User promoted to Bulk Buyer.", { duration: 4000 });
+        toast.success("Application approved. The account now has approved bulk-buyer access.", { duration: 5000 });
         setDrawer(null);
       }
     } catch (err: any) {
@@ -727,7 +720,7 @@ export default function BulkApprovalsPage() {
           <ApplicationDrawer
             app={drawer}
             onApprove={approve}
-            onReject={(id) => { setRejectTarget(drawer); }}
+            onReject={() => { setRejectTarget(drawer); }}
             onClose={() => setDrawer(null)}
           />
         )}

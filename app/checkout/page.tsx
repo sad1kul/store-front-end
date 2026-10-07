@@ -9,24 +9,31 @@ import { createOrderApi } from "@/lib/api/orders";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CreditCard, Lock, CheckCircle2, ChevronRight,
+  Lock, CheckCircle2, ChevronRight,
   ArrowRight, Loader2, AlertCircle
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useAuthStore } from "@/lib/store/authStore";
+import { usePolling } from "@/lib/hooks/usePolling";
 
 export default function CheckoutPage() {
-  const { items, serverValidatedCart, isValidating, validateWithServer, clearCart } = useCartStore();
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "eft">("card");
+  const { items, serverValidatedCart, isValidating, validationError, validateWithServer, clearCart } = useCartStore();
+  const { isAuthenticated, isInitializing } = useAuthStore();
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrderNumber, setPlacedOrderNumber] = useState<string>("");
 
   useEffect(() => {
-    if (items.length > 0) {
+    if (items.length > 0 && isAuthenticated) {
       validateWithServer();
     }
-  }, [items, validateWithServer]);
+  }, [items, isAuthenticated, validateWithServer]);
+
+  usePolling(() => void validateWithServer(), {
+    intervalMs: 15_000,
+    enabled: items.length > 0 && isAuthenticated,
+  });
 
   const {
     register,
@@ -34,10 +41,13 @@ export default function CheckoutPage() {
     formState: { errors },
   } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
-    defaultValues: { paymentMethod: "card" },
   });
 
   const onSubmit = async (data: CheckoutFormData) => {
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     if (!serverValidatedCart) {
       toast.error("Cart must be validated with the server before placing order.");
       return;
@@ -96,6 +106,17 @@ export default function CheckoutPage() {
     </div>
   );
 
+  if (!isInitializing && !isAuthenticated) {
+    return (
+      <div className="max-w-md mx-auto py-24 text-center px-4">
+        <Lock className="mx-auto mb-4 text-indigo-600" />
+        <h1 className="text-xl font-bold mb-2">Sign in to submit an order</h1>
+        <p className="text-slate-500 mb-5">Checkout is available only to approved account holders.</p>
+        <Link href="/login" className="inline-flex bg-indigo-600 text-white font-semibold px-6 py-3 rounded-xl">Sign in</Link>
+      </div>
+    );
+  }
+
   if (items.length === 0 && !showSuccess) {
     return (
       <div className="max-w-md mx-auto py-24 text-center px-4">
@@ -105,7 +126,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const isOrderButtonDisabled = isSubmitting || isValidating || !serverValidatedCart;
+  const isOrderButtonDisabled = isSubmitting || isValidating || !serverValidatedCart || Boolean(validationError);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -120,6 +141,12 @@ export default function CheckoutPage() {
         {/* ─── Checkout Form ─────────────────────────────── */}
         <div className="lg:col-span-3">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {validationError && (
+              <div className="flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" role="alert">
+                <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                <p>{validationError} Update your cart before submitting this order.</p>
+              </div>
+            )}
             {/* Contact Info */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 className="font-bold text-slate-900 mb-4 text-lg">Contact Information</h2>
@@ -155,51 +182,10 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Payment */}
+            {/* Payment status */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 className="font-bold text-slate-900 mb-4 text-lg">Payment Method</h2>
-
-              {/* Method Toggle */}
-              <div className="flex gap-3 mb-5">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("card")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition-colors ${
-                    paymentMethod === "card"
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                      : "border-slate-200 text-slate-600 hover:border-slate-300"
-                  }`}
-                >
-                  <CreditCard size={16} /> Credit / Debit Card
-                </button>
-                <div className="relative flex-1">
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-slate-200 text-sm font-semibold text-slate-400 cursor-not-allowed"
-                  >
-                    Instant EFT
-                  </button>
-                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
-                    Coming Soon
-                  </span>
-                </div>
-              </div>
-
-              {/* Card Fields */}
-              {paymentMethod === "card" && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
-                    <Lock size={12} className="text-indigo-400" />
-                    Demo only — no real payment processing
-                  </div>
-                  <InputField label="Card Number" name="cardNumber" placeholder="1234 5678 9012 3456" />
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Expiry Date" name="cardExpiry" placeholder="MM/YY" />
-                    <InputField label="CVV" name="cardCvv" placeholder="123" />
-                  </div>
-                </div>
-              )}
+              <h2 className="font-bold text-slate-900 mb-2 text-lg">Order Request</h2>
+              <p className="text-sm text-slate-600">No card details are collected here. Submitting creates a pending order request; payment and fulfilment must be confirmed separately by the store.</p>
             </div>
 
             <button
@@ -220,7 +206,7 @@ export default function CheckoutPage() {
               ) : (
                 <>
                   <Lock size={18} />
-                  Place Order — {serverValidatedCart ? formatCurrency(serverValidatedCart.total) : "Calculating..."}
+                  Submit Order Request — {serverValidatedCart ? formatCurrency(serverValidatedCart.total) : "Calculating..."}
                 </>
               )}
             </button>
@@ -323,7 +309,7 @@ export default function CheckoutPage() {
                 <p className="text-xs text-slate-400 mt-1">Estimated delivery: 2–5 business days</p>
               </div>
               <Link
-                href="/order-confirmation"
+                href={`/order-confirmation?orderId=${encodeURIComponent(placedOrderNumber)}`}
                 onClick={() => setShowSuccess(false)}
                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors"
               >

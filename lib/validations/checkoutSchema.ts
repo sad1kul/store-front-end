@@ -16,22 +16,6 @@ export const checkoutSchema = z.object({
   postalCode: z
     .string()
     .regex(/^\d{4}$/, "Postal code must be 4 digits"),
-  cardNumber: z
-    .string()
-    .regex(/^\d{4}\s?\d{4}\s?\d{4}\s?\d{4}$/, "Please enter a valid 16-digit card number")
-    .optional()
-    .or(z.literal("")),
-  cardExpiry: z
-    .string()
-    .regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Please enter expiry as MM/YY")
-    .optional()
-    .or(z.literal("")),
-  cardCvv: z
-    .string()
-    .regex(/^\d{3,4}$/, "CVV must be 3 or 4 digits")
-    .optional()
-    .or(z.literal("")),
-  paymentMethod: z.enum(["card", "eft"]),
 });
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>;
