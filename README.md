@@ -47,8 +47,8 @@ A full-featured e-commerce storefront for premium tobacco and smoke products, ta
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/sad1kul/Smoke-Time-Store.git
-   cd Smoke-Time-Store
+   git clone https://github.com/sad1kul/store-front-end.git
+   cd store-front-end
    ```
 
 2. **Install dependencies:**
@@ -81,7 +81,7 @@ Use any of the preset demo accounts to test role-specific features. A floating *
 ## Project Structure
 
 ```text
-Smoke-Time-Store/
+store-front-end/
 ├── app/                        # Next.js App Router pages and dynamic routes
 │   ├── admin/                  # Admin dashboard, products, orders, users, approvals, CMS
 │   ├── cart/                   # Shopping cart page
